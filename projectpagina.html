@@ -1,0 +1,1728 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projectregister · HTM tekeningcontrole</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link id="fonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700&family=Source+Code+Pro:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper: #f4f6f7; --sheet: #ffffff; --ink: #1b2430; --pencil: #4c5157; --rule: #1b243024;
+    --desk: #12324a; --accent: #135f80; --accent-tint: #e6eff4; --accent-soft: #8cc4de; --red: #b3261e;
+    --head: "Public Sans", "Segoe UI", sans-serif;
+    --mono: "Source Code Pro", "Consolas", monospace;
+    --sq: clamp(196px, calc((100vw - 200px) * .174 - 15px), 290px); /* zijde van een tekeningblok, groeit mee met het scherm */
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--desk); }
+  body { margin: 0; min-height: 100vh; display: grid; grid-template-columns: 64px 1fr;
+         font: 15px/1.5 var(--head); color: var(--ink); background: var(--desk); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .label { margin: 0 0 4px; font: 600 13px var(--head); color: var(--pencil); }
+
+  /* Linker rail */
+  .rail { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; align-items: center;
+          gap: 18px; padding-bottom: 18px; color: #fff; }
+  .rail::before { content: ""; width: 100%; height: 10px; background: var(--red); }
+  .rail nav { display: flex; flex-direction: column; gap: 4px; }
+  .rail a { writing-mode: vertical-rl; transform: rotate(180deg); color: #a9bfcd; text-decoration: none;
+            font-size: 13px; font-weight: 600; letter-spacing: .08em; padding: 14px 7px; border-right: 3px solid transparent; }
+  .rail a:hover { color: #fff; }
+  .rail a[aria-current="page"] { color: #fff; border-right-color: var(--accent-soft); }
+  .rail a:focus-visible { outline-color: var(--accent-soft); }
+  .brand { margin-top: auto; writing-mode: vertical-rl; transform: rotate(180deg); font-size: 13px; letter-spacing: .06em; }
+  .brand b { color: #ff8a80; }
+
+  /* Tekenblad met kader en zone-indeling */
+  .desk { padding: 14px 14px 14px 0; min-width: 0; }
+  .frame { min-height: calc(100vh - 28px); display: grid; grid-template-columns: 24px minmax(0, 1fr);
+           grid-template-rows: 24px 1fr; border: 1px solid var(--ink); background: var(--paper); }
+  .zones { display: flex; font: 12px var(--mono); color: var(--pencil); }
+  .zones span { flex: 1; display: grid; place-items: center; border-left: 1px solid var(--rule); }
+  .zones span:first-child { border: 0; }
+  .zones.top { grid-area: 1 / 2; border-bottom: 1.5px solid var(--ink); }
+  .zones.left { grid-area: 2 / 1; flex-direction: column; border-right: 1.5px solid var(--ink); }
+  .zones.left span { border-left: 0; border-top: 1px solid var(--rule); }
+  .zones.left span:first-child { border: 0; }
+  .inner { grid-area: 2 / 2; display: flex; flex-direction: column; padding: 24px 34px 0; min-width: 0; }
+  #app { flex: 1; margin-bottom: 32px; }
+  #app:focus { outline: none; }
+
+  /* Titelhoek rechtsonder */
+  .titleblock { align-self: flex-end; margin: auto -34px 0 0; display: grid; grid-template-columns: repeat(3, auto);
+                border-top: 1.5px solid var(--ink); border-left: 1.5px solid var(--ink); background: var(--sheet);
+                min-width: min(520px, 100%); }
+  .titleblock div { padding: 4px 12px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .titleblock b { display: block; font-size: 12px; font-weight: 400; color: var(--pencil); }
+  .titleblock span { font-size: 14px; font-weight: 600; }
+  .titleblock .w2 { grid-column: span 2; }
+  .titleblock .w3 { grid-column: span 3; border-bottom: 0; }
+  .titleblock .code-val { font-family: var(--mono); font-weight: 500; }
+
+  /* Koppen */
+  .view-head { display: grid; grid-template-columns: 1fr auto auto; gap: 28px; align-items: end;
+               padding-bottom: 16px; margin-bottom: 22px; border-bottom: 1.5px solid var(--ink); }
+  h1 { margin: 0; font-size: clamp(30px, 3.6vw, 44px); line-height: 1.05; font-weight: 700; letter-spacing: -.015em; }
+  .pnr { font-family: var(--mono); font-weight: 500; color: var(--ink); }
+  .tally { display: flex; gap: 26px; margin: 0; }
+  .tally div { border-left: 1px solid var(--ink); padding-left: 10px; }
+  .tally dt { font-size: 13px; font-weight: 600; color: var(--pencil); }
+  .tally dd { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tally small { font-size: 15px; font-weight: 400; color: var(--pencil); }
+  .back { font-size: 14px; color: var(--ink); text-underline-offset: 3px; }
+  .back:hover { color: var(--accent); }
+
+  .btn { display: inline-block; font: 600 15px var(--head); color: #fff; background: var(--accent);
+         border: 1.5px solid var(--accent); padding: 8px 16px; text-decoration: none; cursor: pointer; white-space: nowrap;
+         transition: background .12s, color .12s; }
+  .btn:hover { background: var(--sheet); color: var(--accent); }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .btn.ghost:hover { background: var(--accent-tint); }
+  .btn:disabled, .btn[aria-disabled="true"] { background: transparent; color: var(--pencil); border-style: dashed;
+                                              border-color: var(--pencil); cursor: not-allowed; }
+  .btn.sm { font-size: 14px; padding: 5px 12px; }
+
+  .demo-tag { align-self: flex-end; margin: -8px 0 14px; font-size: 13px; font-weight: 600; color: var(--red);
+              border: 1.5px solid var(--red); padding: 2px 9px; }
+
+  /* Register (overzicht) */
+  .tablewrap { overflow-x: auto; }
+  .register { width: 100%; border-collapse: collapse; min-width: 640px; font-variant-numeric: tabular-nums; }
+  .register th { font-size: 13px; font-weight: 600; color: var(--ink); text-align: left; padding: 8px 10px;
+                 background: var(--accent-tint); border-bottom: 1.5px solid var(--accent); }
+  .register th.d { font-family: var(--mono); font-weight: 600; }
+  .register td { padding: 13px 10px; border-bottom: 1px solid var(--rule); vertical-align: middle; background: var(--sheet); }
+  .register .d { text-align: center; width: 52px; }
+  .register tbody tr { cursor: pointer; }
+  .register tbody tr:hover td { background: #f8fbfc; }
+  .register tbody tr:hover .nr { color: var(--accent); }
+  .nr { font-family: var(--mono); font-size: 14px; white-space: nowrap; }
+  .pname a { color: inherit; text-decoration: none; font-size: 18px; font-weight: 600; }
+  .pname small { display: block; font-size: 14px; color: var(--pencil); }
+  .count { font-size: 14px; white-space: nowrap; }
+  .count.full { color: var(--accent); font-weight: 700; }
+  .date { font-family: var(--mono); font-size: 13px; color: var(--pencil); white-space: nowrap; }
+  .go { text-align: right; color: var(--pencil); }
+  .mark { display: inline-block; width: 16px; height: 16px; border: 1.5px solid #1b243080; vertical-align: middle;
+          background: repeating-linear-gradient(-45deg, transparent 0 3px, #1b24303a 3px 4px); }
+  .mark.ok { background: var(--accent); border-color: var(--accent); }
+  .mark.warn { outline: 2px solid var(--red); outline-offset: 2px; }
+  .legend { display: flex; gap: 22px; margin: 12px 0 0; font-size: 14px; color: var(--pencil); }
+  .legend .mark { width: 12px; height: 12px; margin-right: 7px; }
+  .empty { padding: 40px 0; color: var(--pencil); }
+
+  /* Nieuw project */
+  .new { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); gap: 44px; align-items: start; }
+  .fields { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  .fields legend { padding: 0; margin-bottom: 12px; font-size: 16px; font-weight: 700; color: var(--ink); }
+  .field > span { display: block; font-size: 13px; font-weight: 600; color: var(--pencil); }
+  .field em { font-style: normal; font-weight: 400; }
+  .field input { width: 100%; font: 400 18px var(--head); color: var(--ink); background: transparent; border: 0;
+                 border-bottom: 1.5px solid var(--ink); border-radius: 0; padding: 5px 0; }
+  .field input.mono { font-family: var(--mono); font-size: 17px; }
+  .field input::placeholder { color: #1b243075; font-style: italic; }
+  .field input:focus { outline: none; border-bottom: 2.5px solid var(--accent); padding-bottom: 4px; }
+  .err { min-height: 1.4em; margin: -8px 0 0; color: var(--red); font-size: 14px; }
+  .note { margin: 0; padding-left: 10px; border-left: 2px solid var(--accent); font-size: 14px; color: var(--pencil); }
+
+  /* Werkbank: documenten (≈2/3) en analyses (≈1/3); analyses beginnen op ±66% van de breedte */
+  .workbench { display: grid; grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); gap: 28px; align-items: start; }
+  .docs { display: flex; gap: 28px; align-items: flex-start; min-width: 0; }
+  .group { display: flex; flex-direction: column; min-width: 0; }
+  .group > header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+                    padding-bottom: 5px; margin-bottom: 12px; border-bottom: 1.5px solid var(--ink); }
+  .group h2 { margin: 0; font-size: 17px; font-weight: 700; }
+  .gcount { font-size: 13px; color: var(--pencil); white-space: nowrap; }
+  .gcount.full { color: var(--accent); font-weight: 700; }
+  .gcount.bad { color: var(--red); font-weight: 600; }
+  .grid1 { display: grid; }
+  .group.tek { flex: 1 1 auto; }
+
+  /* Tekeningen per discipline: een kopje met een regel per document en een regel om toe te voegen */
+  .discs { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; }
+  .dsec { position: relative; background: var(--sheet); border: 1px solid #1b243040; display: flex; flex-direction: column; min-width: 0; }
+  .dsec.none { background: #ffffffb0; border: 1.5px dashed #1b243070; }
+  .disc-head { display: flex; align-items: baseline; gap: 8px; padding: 8px 12px 6px; border-bottom: 1px solid var(--rule); }
+  .dsec.none .disc-head { border-bottom: 0; }
+  .disc-head h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--pencil); }
+  .dcount { margin-left: auto; font-size: 13px; color: var(--pencil); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .dcount.bad { color: var(--red); font-weight: 600; }
+  .doclist { list-style: none; margin: 0; padding: 0; }
+  .doc { position: relative; display: grid; grid-template-columns: 40px minmax(0, 1fr) 26px; align-items: center; gap: 4px 10px;
+         padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--rule); box-shadow: inset 4px 0 0 var(--accent); }
+  .doc.inherited { box-shadow: inset 4px 0 0 #135f80cc; }
+  .doc.warned { box-shadow: inset 4px 0 0 var(--red); }
+  .doc.plotting { box-shadow: inset 4px 0 0 var(--accent-soft); }
+  .ro .doc { grid-template-columns: 40px minmax(0, 1fr); }
+  .doc:not(.ro):hover { background: #f8fbfc; }
+  .doc svg { width: 40px; height: 22px; }
+  .doc-main { min-width: 0; display: flex; flex-direction: column; }
+  .doc .fn { font: 500 13px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .doc-meta { display: flex; gap: 8px; font-size: 12px; color: var(--pencil); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .doc-meta .got { font-weight: 600; color: var(--accent); }
+  .doc-meta .hint { text-decoration: underline; text-underline-offset: 3px; }
+  .doc:hover .hint { color: var(--accent); }
+  .doc .namewarn { margin: 2px 0 0; }
+  .rm { position: relative; z-index: 2; }
+  .rm { width: 26px; height: 26px; font: 600 16px var(--head); line-height: 1; color: var(--pencil); background: none; border: 1px solid transparent; cursor: pointer; }
+  .rm:hover { color: var(--red); border-color: #b3261e55; }
+  .addrow { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 12px; overflow: hidden;
+            color: var(--accent); font-size: 14px; font-weight: 600; border-top: 1px dashed transparent; }
+  .addrow small { font-weight: 400; color: var(--pencil); font-size: 13px; }
+  .addrow .plus { display: grid; place-items: center; width: 22px; height: 22px; border: 1.5px solid var(--accent); font-size: 16px; line-height: 1; }
+  .addrow:hover, .addrow.over { background: var(--accent-tint); }
+  .addrow.over { box-shadow: inset 0 0 0 2px var(--accent); }
+  .dsec.none .addrow { padding: 4px 12px 12px; }
+  .addrow.plotting, .doc.plotting { color: var(--accent); }
+  .addrow:focus-within, .doc:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .doc .carriage, .addrow .carriage { top: 4px; bottom: 4px; }
+  .doc.plotting .carriage, .addrow.plotting .carriage { opacity: 1; }
+  .undo-line { margin: 0; padding: 0 12px; font-size: 13px; min-height: 0; }
+  .undo-line:not(:empty) { padding: 6px 12px; border-top: 1px solid var(--rule); }
+  .undo-line button { font: 600 12px var(--head); color: var(--accent); border: 1px solid var(--accent); background: none; cursor: pointer; padding: 1px 7px; margin-left: 8px; }
+  .stack { display: inline-flex; align-items: center; gap: 2px; }
+  .stack .mark { width: 9px; height: 14px; }
+  .stack b { margin-left: 5px; font: 600 13px var(--mono); }
+  .register .d { width: 74px; text-align: left; }
+  .meter .mg { display: flex; gap: 2px; padding-right: 8px; margin-right: 6px; border-right: 1px solid var(--rule); }
+  .meter .mg:last-child { border-right: 0; }
+  .meter .mg i { width: 12px; }
+
+  /* Controlerondes: tabbladen boven de werkbank, ze bepalen alles eronder */
+  .rounds { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: -4px 0 18px; }
+  .rounds-label { font-size: 14px; font-weight: 600; color: var(--pencil); }
+  .tabs { display: flex; border: 1px solid #1b243040; background: var(--sheet); }
+  .tabs button { font: 600 14px var(--head); padding: 6px 14px; border: 0; border-right: 1px solid #1b243026;
+                 background: none; color: var(--ink); cursor: pointer; }
+  .tabs button:last-child { border-right: 0; }
+  .tabs button:hover { background: var(--accent-tint); }
+  .tabs button[aria-selected="true"] { background: var(--accent); color: #fff; }
+  .tabs small { font-weight: 400; margin-left: 6px; font-variant-numeric: tabular-nums; opacity: .85; }
+  .tabs .latest { font-weight: 400; font-size: 13px; margin-left: 6px; }
+  .round-note { font-size: 14px; color: var(--pencil); }
+  .round-note.warn { color: var(--red); }
+  .readonly { display: flex; align-items: center; gap: 12px; margin: -8px 0 18px; padding: 7px 12px;
+              background: var(--sheet); border: 1px solid #1b243040; border-left: 4px solid var(--ink); font-size: 14px; }
+  .readonly button { font: 600 14px var(--head); color: var(--accent); background: none; border: 0; padding: 2px 0;
+                     text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
+  /* Blokken: upload-slots per discipline */
+  .sheet { position: relative; width: var(--sq); height: var(--sq); display: flex; flex-direction: column; padding: 10px 12px;
+           overflow: hidden; border: 1.5px dashed #1b243070; background: #ffffffb0; transition: border-color .15s, background .15s; }
+  .grid1 .sheet { height: calc(var(--sq) * 2 + 14px); width: calc((var(--sq) * 2 + 14px) * .72); }
+  .sheet.empty:hover, .sheet.over { border-color: var(--ink); background: var(--sheet); }
+  .sheet.done:not(.ro):hover { border-color: var(--ink); }
+  .sheet.over { border-style: solid; box-shadow: inset 0 0 0 3px var(--accent-tint); }
+  .sheet.done { border-style: solid; border-color: #1b243040; background: var(--sheet); box-shadow: inset 0 4px 0 var(--accent); }
+  .sheet.done.inherited { box-shadow: inset 0 4px 0 #135f8055; }
+  .sheet.done.warned { box-shadow: inset 0 4px 0 var(--red); }
+  .sheet.plotting { border-style: solid; border-color: var(--accent); background: var(--sheet); }
+  .sheet.ro.empty { background: transparent; }
+  .sheet:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .sheet-head { display: flex; align-items: baseline; gap: 7px; }
+  .code { font-family: var(--mono); font-size: 21px; font-weight: 600; line-height: 1; }
+  .dname { font-size: 14px; color: var(--pencil); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheet svg { flex: 1; width: 100%; min-height: 0; max-height: calc(var(--sq) * .34); margin: auto 0; }
+  .grid1 .sheet svg { max-height: calc(var(--sq) * 1.05); }
+  .sheet-foot { min-width: 0; font: 12px var(--mono); color: var(--pencil); white-space: nowrap; display: flex; gap: 6px; justify-content: space-between; }
+  .sheet-foot .fn { overflow: hidden; text-overflow: ellipsis; }
+  .empty .sheet-foot { font: 13px var(--head); white-space: normal; }
+  .sheet.done .sheet-foot { color: var(--ink); }
+  .sheet-foot.bad { color: var(--red); }
+  .meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; min-height: 24px;
+          font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .meta .got { font-weight: 600; color: var(--accent); }
+  .meta .inh { color: var(--pencil); }
+  .warned .meta .got { color: var(--ink); }
+  .meta .hint { color: var(--pencil); text-decoration: underline; text-underline-offset: 3px; }
+  .sheet.done:not(.ro):hover .hint { color: var(--accent); }
+  .meta .undo, .namewarn button { position: relative; z-index: 2; font: 600 12px var(--head); background: none; cursor: pointer;
+                                   min-height: 24px; padding: 1px 7px; }
+  .meta .undo { color: var(--accent); border: 1px solid var(--accent); }
+  .namewarn { margin: 0 0 4px; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+              font-size: 13px; line-height: 1.3; color: var(--red); font-weight: 600; white-space: nowrap; }
+  .namewarn button { color: var(--red); border: 1px solid var(--red); }
+  .namewarn button:hover { background: #b3261e12; }
+  .plotting .meta, .plotting .namewarn { visibility: hidden; }
+  .cardwarn { margin: 0; font-size: 14px; color: var(--red); }
+  .hit { position: absolute; inset: 0; cursor: pointer; }
+  .hit input { position: absolute; width: 1px; height: 1px; opacity: 0; left: 0; top: 0; }
+
+  .ghost path { fill: none; stroke: #1b243035; stroke-width: .8; stroke-dasharray: 1.6 2; }
+  .ink path { fill: none; stroke: var(--ink); stroke-width: 1.2; stroke-linecap: round;
+              stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .ink path.accent { stroke: var(--accent); }
+  .ink:not(.drawn) path { visibility: hidden; }
+  .ink.drawn path { stroke-dashoffset: 0;
+                    transition: stroke-dashoffset calc(var(--dur, 1600ms) * .55) cubic-bezier(.5, 0, .3, 1)
+                                calc(var(--i) * var(--dur, 1600ms) * .07); }
+  .ink.static path { transition: none; }
+
+  .carriage { position: absolute; top: 36px; bottom: 40px; left: 0; width: 2px; background: var(--accent);
+              opacity: 0; pointer-events: none; }
+  .carriage::before { content: ""; position: absolute; top: -6px; left: -5px; width: 12px; height: 6px; background: var(--accent); }
+  .sheet.plotting .carriage { opacity: 1; }
+
+  /* Projectdetail */
+  .meter { display: flex; gap: 4px; margin-top: 8px; }
+  .meter i { width: 26px; height: 10px; border: 1.5px solid #1b243080;
+             background: repeating-linear-gradient(-45deg, transparent 0 3px, #1b24303a 3px 4px); }
+  .meter i.ok { background: var(--accent); border-color: var(--accent); }
+  .meter-label { font-size: 13px; color: var(--pencil); margin-top: 3px; }
+
+  /* Analyses: los te starten */
+  .runs { display: grid; gap: 14px; }
+  .run { background: var(--sheet); border: 1px solid #1b243040; display: flex; flex-direction: column; }
+  .run > header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+                  padding: 7px 12px; background: var(--accent-tint); border-bottom: 1px solid #1b243026; }
+  .run h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .state { font-size: 13px; font-weight: 600; color: var(--pencil); white-space: nowrap; }
+  .state.busy, .state.done { color: var(--accent); }
+  .state.stale { color: var(--red); }
+  .run-body { padding: 9px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .run-body p { margin: 0; font-size: 14px; line-height: 1.4; color: var(--pencil); }
+  .reqs { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  .reqs li { display: flex; gap: 7px; }
+  .reqs .y { color: var(--accent); font-weight: 700; }
+  .reqs .n { color: var(--pencil); }
+  .run-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .run-foot .info { flex-basis: 100%; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .run-foot .info .was { color: var(--accent); font-weight: 600; }
+  .run-foot .why { font-size: 13px; color: var(--pencil); }
+  .run-foot .warn { flex-basis: 100%; font-size: 14px; color: var(--red); }
+  .progress { flex: 1; min-width: 160px; }
+  .progress .bar { height: 6px; background: var(--accent-tint); overflow: hidden; }
+  .progress .bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+  .progress .step { display: flex; justify-content: space-between; font-size: 13px; color: var(--accent); margin-top: 3px; }
+
+  .progress .bar.indet i, .agent .bar.indet i { width: 30%; animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+  .run-foot .info.expect { color: var(--pencil); }
+  .bad { color: var(--red); font-weight: 600; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); margin-left: 6px; vertical-align: middle; }
+  .tabs [aria-selected="true"] .dot { background: #fff; }
+  .busy-s { color: var(--accent); font-weight: 600; font-size: 13px; }
+  .legend .dot { margin: 0 7px 0 0; }
+
+  /* Analysescherm */
+  .crumbs { font-size: 14px; color: var(--pencil); margin: -6px 0 10px; }
+  .crumbs a { color: var(--ink); text-underline-offset: 3px; }
+  .crumbs a:hover { color: var(--accent); }
+  .an-head { grid-template-columns: 1fr auto auto; }
+  .an-status { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .chip { font-size: 14px; font-weight: 700; padding: 3px 10px; border: 1.5px solid var(--pencil); color: var(--pencil); background: var(--sheet); }
+  .chip.busy, .chip.done { border-color: var(--accent); color: var(--accent); }
+  .chip.busy { background: var(--accent-tint); }
+  .chip.warn { border-color: var(--red); color: var(--red); }
+  .clock { font-size: 14px; color: var(--pencil); font-variant-numeric: tabular-nums; text-align: right; }
+  .clock b { color: var(--ink); }
+  .clock small { display: block; font-size: 12px; }
+  .an-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; max-width: 360px; }
+  .confirm { font-size: 14px; font-weight: 600; flex-basis: 100%; text-align: right; }
+  .btn.danger { background: var(--red); border-color: var(--red); }
+  .btn.danger:hover { background: var(--sheet); color: var(--red); }
+  .demo-note { margin: -8px 0 18px; padding: 7px 12px; font-size: 14px; background: var(--sheet); border: 1px solid #b3261e55; border-left: 4px solid var(--red); }
+  .an { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 28px; align-items: start; }
+  .an-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .an-side { display: flex; flex-direction: column; gap: 14px; }
+
+  .part { background: var(--sheet); border: 1px solid #1b243040; }
+  .part > header { display: flex; align-items: center; gap: 10px; padding: 9px 14px; }
+  .part-body { padding: 2px 14px 14px 46px; display: flex; flex-direction: column; gap: 10px; }
+  .part h2 { margin: 0; font-size: 17px; font-weight: 700; }
+  .pno { flex: none; width: 24px; height: 24px; display: grid; place-items: center; font: 600 13px var(--mono); border: 1.5px solid var(--ink); }
+  .part.active { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+  .part.active .pno { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .part.done .pno { border-color: var(--accent); color: var(--accent); background: var(--accent-tint); }
+  .part.todo { background: transparent; border-style: dashed; }
+  .part.todo .pno, .part.todo h2 { color: var(--pencil); border-color: var(--pencil); }
+  .psum { margin-left: auto; font-size: 14px; color: var(--pencil); font-variant-numeric: tabular-nums; text-align: right; }
+  .part.active .psum { color: var(--accent); font-weight: 700; font-size: 16px; }
+  .substeps { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  .substeps li { display: grid; grid-template-columns: 18px 1fr auto 84px; align-items: center; gap: 6px 10px; padding: 2px 0; color: var(--pencil); }
+  .substeps .mini { height: 4px; background: var(--accent-tint); }
+  .substeps .mini b { display: block; height: 100%; background: var(--accent); }
+  .substeps li.ok .ic { color: var(--accent); font-weight: 700; }
+  .substeps li.now { color: var(--ink); font-weight: 600; }
+  .substeps li.now .ic { color: var(--accent); }
+  .substeps small { font-weight: 400; color: var(--pencil); }
+  .substeps .num { font-variant-numeric: tabular-nums; }
+  .bigbar { height: 10px; background: var(--accent-tint); }
+  .bigbar i { display: block; height: 100%; background: var(--accent); transition: width .25s linear; }
+  .pline { margin: 0; display: flex; justify-content: space-between; gap: 12px; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .pline > span:last-child { color: var(--pencil); }
+  .boxes { display: flex; flex-wrap: wrap; gap: 5px; }
+  .boxes i { width: 22px; height: 22px; border: 1.5px solid #1b243055; background: var(--sheet); }
+  .boxes i.ok { background: var(--accent); border-color: var(--accent); }
+  .boxes i.fail { background: var(--red); border-color: var(--red); position: relative; }
+  .boxes i.fail::after { content: "✕"; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font: 700 13px var(--head); font-style: normal; }
+  .boxes i.busy { border-color: var(--accent); border-width: 2px; animation: pulse 1.2s ease-in-out infinite alternate; }
+  @keyframes pulse { from { background: var(--sheet); } to { background: var(--accent-tint); } }
+  .seg { display: flex; height: 12px; background: var(--accent-tint); }
+  .seg .ok { background: var(--accent); } .seg .fail { background: var(--red); } .seg .busy { background: var(--accent-soft); }
+  .now { margin: 0; font-size: 14px; }
+  .mono { font-family: var(--mono); font-size: .95em; }
+  .muted { color: var(--pencil); margin: 0; font-size: 14px; }
+  .small { font-size: 13px; }
+  .fails { margin: 0; padding: 0; list-style: none; font-size: 14px; color: var(--red); }
+  .agent { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+  .agent .bar { width: 140px; height: 6px; background: var(--accent-tint); overflow: hidden; }
+  .agent .bar i { display: block; height: 100%; background: var(--accent); }
+
+  .side-box { background: var(--sheet); border: 1px solid #1b243040; padding: 10px 14px; }
+  .side-box .label { margin-bottom: 6px; }
+  .side-box p { margin: 0; font-size: 14px; }
+  .tallybox .big, .result .big { font-size: 34px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .result .big span { font-size: 18px; font-weight: 600; }
+  .e-hoog { color: var(--red); font-weight: 600; }
+  .e-laag { color: var(--pencil); }
+  .leave { margin: 0; padding-left: 10px; border-left: 2px solid var(--accent); font-size: 14px; color: var(--pencil); }
+  .inputs { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+  .inputs li { display: grid; grid-template-columns: 34px 1fr; gap: 0 6px; padding: 3px 0; border-top: 1px solid var(--rule); }
+  .inputs li:first-child { border-top: 0; }
+  .inputs .code-s { font: 600 13px var(--mono); }
+  .inputs .fn { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .inputs .bad { grid-column: 2; font-size: 13px; }
+  details.side-box summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--pencil); }
+  details.side-box summary:hover { color: var(--accent); }
+  .log { list-style: none; margin: 8px 0 0; padding: 0; max-height: 260px; overflow: auto; font-size: 13px; }
+  .log li { display: grid; grid-template-columns: 44px 1fr; gap: 6px; padding: 2px 0; }
+  .log .t { font-family: var(--mono); color: var(--pencil); }
+  .log li.warn { color: var(--red); }
+  .line { display: flex; gap: 6px; }
+  .flow { margin-top: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--rule); }
+  .line .ok { color: var(--accent); font-weight: 700; }
+
+  .result { display: flex; flex-direction: column; gap: 14px; }
+  .res-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 14px;
+             background: var(--sheet); border: 1px solid #1b243040; box-shadow: inset 0 4px 0 var(--accent); padding: 14px 16px 12px; }
+  .res-top p { margin: 0; }
+  .ernst { font-size: 15px; margin-top: 2px !important; }
+  .res-act { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .res-act .why { font-size: 13px; color: var(--pencil); }
+  .ex-tag { margin-left: 6px; font-size: 12px; font-weight: 700; color: var(--red); border: 1.5px solid var(--red); padding: 0 6px; }
+  .res-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .block { background: var(--sheet); border: 1px solid #1b243040; padding: 10px 16px 12px; }
+  .block h2 { margin: 0 0 8px; font-size: 15px; font-weight: 700; }
+  .cmp { gap: 22px; }
+  .cmp dd { font-size: 24px; }
+  .disc { margin-top: 4px !important; font-size: 14px; color: var(--pencil); }
+  .disc .mono { font-weight: 600; }
+  .top { list-style: none; margin: 0; padding: 0; }
+  .top li { display: grid; grid-template-columns: 64px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--rule); }
+  .top li:first-child { border-top: 0; padding-top: 0; }
+  .top p { margin: 0; font-size: 15px; line-height: 1.4; }
+  .top small { font-size: 13px; color: var(--pencil); }
+  .e-tag { align-self: start; font-size: 12px; font-weight: 700; text-align: center; padding: 1px 0; border: 1.5px solid var(--pencil); color: var(--pencil); }
+  .e-tag.e-hoog { border-color: var(--red); color: var(--red); }
+  .e-tag.e-midden { border-color: var(--ink); color: var(--ink); }
+  .notchecked { margin: 0; padding-left: 18px; font-size: 14px; color: var(--pencil); }
+  .warnbox { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 9px 14px;
+             background: var(--sheet); border: 1px solid #b3261e55; border-left: 4px solid var(--red); }
+  .warnbox p { margin: 0; font-size: 14px; }
+  .warnline { margin: 0; font-size: 14px; color: var(--red); }
+  .an-main > .note { margin: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .boxes i.busy, .bar.indet i { animation: none !important; }
+    .bar.indet i { width: 100% !important; opacity: .45; }
+  }
+
+  @media (max-width: 1180px) {
+    .an { grid-template-columns: 1fr; }
+    .workbench { grid-template-columns: 1fr; }
+    .runs { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 860px) {
+    body { grid-template-columns: 44px 1fr; }
+    .inner { padding: 20px 18px 0; }
+    .titleblock { margin-right: -18px; }
+    .view-head, .new, .runs, .res-grid, .res-top { grid-template-columns: 1fr; }
+    .res-act { align-items: flex-start; }
+    .docs { flex-direction: column; }
+    .discs { grid-template-columns: 1fr; }
+    :root { --sq: calc((100vw - 140px) / 2); }
+    .grid1 .sheet { width: 100%; height: auto; aspect-ratio: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+<aside class="rail">
+  <nav aria-label="Hoofdnavigatie">
+    <a href="#/" data-nav="register">Register</a>
+    <a href="#/nieuw" data-nav="nieuw">Nieuw project</a>
+  </nav>
+  <div class="brand" aria-hidden="true"><b>HTM</b> · Tekeningcontrole</div>
+</aside>
+<div class="desk">
+  <div class="frame">
+    <div></div><div class="zones top" data-z="12345678"></div>
+    <div class="zones left" data-z="ABCDEF"></div>
+    <div class="inner">
+      <p class="demo-tag">Demo · uploads en analyses worden gesimuleerd</p>
+      <main id="app" tabindex="-1"></main>
+      <div class="titleblock" aria-label="Titelhoek">
+        <div><b>Opdrachtgever</b><span>HTM</span></div>
+        <div><b>Systeem</b><span>Tekeningcontrole</span></div>
+        <div><b>Datum</b><span id="tb-date"></span></div>
+        <div class="w2"><b>Blad</b><span id="tb-sheet"></span></div>
+        <div><b>Nr.</b><span id="tb-nr" class="code-val"></span></div>
+        <div class="w3"><b>Revisie</b><span>Demo-versie</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DISCIPLINES = [
+  { key: 'SPO', name: 'Spoor' },
+  { key: 'SVZ', name: 'Stroomvoorziening' },
+  { key: 'CIV', name: 'Civiel' },
+  { key: 'WSB', name: 'Wissels' },
+  { key: 'BST', name: 'Bestek' },
+];
+const DRAWINGS = DISCIPLINES.filter(d => d.key !== 'BST');
+const BESTEK = DISCIPLINES.find(d => d.key === 'BST');
+
+// Per discipline een eigen lijntekening die "geplot" wordt. Paden met '!' krijgen de accentkleur.
+const GLYPHS = {
+  SPO: ['M2 44 C40 44 70 26 118 18', 'M2 54 C42 54 74 36 118 28', 'M14 40 L14 58', 'M30 40 L30 58',
+        'M46 37 L48 55', 'M62 32 L65 50', 'M78 27 L82 45', 'M94 22 L98 40'],
+  SVZ: ['M2 14 Q31 26 60 14 Q89 26 118 14', 'M2 22 H118', 'M30 20 V58', 'M90 20 V58', 'M24 58 H36', 'M84 58 H96',
+        '!M57 26 L51 36 L58 36 L52 46'],
+  CIV: ['M2 50 C24 40 40 56 62 46 S98 36 118 44', 'M2 38 C26 28 44 42 64 34 S100 24 118 30',
+        'M2 26 C28 16 48 28 66 22 S102 12 118 16', 'M14 60 H106', '!M60 4 V62'],
+  WSB: ['M2 26 H118', 'M2 36 H118', 'M40 36 C66 36 86 44 118 56', 'M52 26 C74 26 92 34 118 46', '!M40 36 L54 27'],
+  BST: ['!M16 16 V176', 'M28 20 H96', 'M28 40 H124', 'M28 52 H116', 'M28 64 H120', 'M28 76 H80',
+        'M28 96 H124', 'M28 108 H112', 'M28 120 H122', 'M28 132 H68', 'M28 152 H120', 'M28 164 H100'],
+};
+const VIEWBOX = { BST: '0 0 140 192' };
+
+// Een project heeft controlerondes. Elke ronde = een complete set (tekeningen per discipline + bestek) met eigen analyse-runs.
+// Per discipline kunnen meerdere tekeningen horen (bijv. verwijderen, aanbrengen, kabelplannen; per project verschillend);
+// files.SPO enz. zijn daarom lijsten. Het bestek (files.BST) is één document.
+// Een nieuwe ronde neemt de documenten van de vorige over ('from' = ronde waarin het bestand is aangeleverd);
+// je vervangt alleen wat gewijzigd is. Oudere rondes zijn alleen-lezen, zodat oude resultaten bewaard blijven.
+// 'uid' blijft gelijk als een document wordt vervangen, zodat een run "SPO-00034 vervangen" kan melden.
+let uidSeq = 0;
+const doc = (name, size, at, from) => ({ uid: ++uidSeq, name, size, at, from });
+const day = (m, d, h = 9, min = 0) => new Date(2026, m - 1, d, h, min);
+// Documenten zelf worden nooit gewijzigd (een wijziging = nieuw object met dezelfde uid), dus delen tussen rondes is veilig.
+// '_edited' (iets verwijderd of verplaatst in deze ronde) gaat niet mee naar de volgende ronde.
+const cloneFiles = files => Object.fromEntries(Object.entries(files).filter(([k]) => !k.startsWith('_'))
+  .map(([k, v]) => [k, Array.isArray(v) ? [...v] : v]));
+
+const r1 = (name, size) => doc(name, size, day(9, 2), 1);
+const keerlusR1 = {
+  SPO: [r1('P051-690-BO-HTM-IB-SPO-00031-REV00.pdf', 4420000),
+        r1('P051-690-BO-HTM-IB-SPO-00034-REV00.pdf', 4810000),
+        r1('P051-690-BO-HTM-IB-SPO-00035-REV00.pdf', 2950000)],
+  SVZ: [r1('P051-690-BO-HTM-IB-SVZ-00036-REV00.pdf', 3920000)],
+  CIV: [r1('P051-690-DO-HTM-IB-CIV-00017-REV00.pdf', 5870000),
+        r1('P051-690-DO-HTM-IB-CIV-00018-REV00.pdf', 6080000)],
+  WSB: [r1('P051-690-BO-HTM-IB-WSB-00013-REV00.pdf', 1310000),
+        r1('P051-690-BO-HTM-IB-WSB-00014-REV00.pdf', 2770000),
+        r1('P051-690-BO-HTM-IB-WSB-00015-REV00.pdf', 1290000),
+        r1('P051-690-BO-HTM-IB-WSB-00016-REV00.pdf', 2830000)],
+  BST: doc('P051-690-Bestek-v2.pdf', 1240000, day(9, 2), 1),
+};
+// Ronde 2: CIV-00018 vervangen door REV01 (zelfde uid, dus "vervangen").
+const civR2 = { ...keerlusR1.CIV[1], name: 'P051-690-DO-HTM-IB-CIV-00018-REV01.pdf', size: 6150000, at: day(9, 9), from: 2 };
+const projects = [
+  { id: 'P051-690', number: 'P051-690', name: 'Keerlus Wateringseveld', place: 'Den Haag — tramlijn 17', created: day(8, 26),
+    rounds: [
+      { no: 1, created: day(9, 2), files: keerlusR1, runs: {} },
+      { no: 2, created: day(9, 9), files: { ...cloneFiles(keerlusR1), CIV: [keerlusR1.CIV[0], civR2] }, runs: {} },
+    ] },
+  { id: 'P048-212', number: 'P048-212', name: 'Halte Leyenburg — herinrichting', place: 'Den Haag — tramlijnen 4, 6', created: day(10, 6),
+    rounds: [{ no: 1, created: day(10, 8), runs: {}, files: {
+      SPO: [doc('P048-212-DO-HTM-IB-SPO-00007-REV02.pdf', 3300000, day(10, 8), 1)],
+      CIV: [doc('P048-212-DO-HTM-IB-CIV-00010-REV01.pdf', 4710000, day(10, 21), 1),
+            doc('P048-212-DO-HTM-IB-CIV-00011-REV01.pdf', 5020000, day(10, 21), 1)],
+      WSB: [doc('P048-212-DO-HTM-IB-SVZ-00009-REV00.pdf', 2410000, day(10, 22), 1)],
+    } }] },
+  { id: 'P053-104', number: 'P053-104', name: 'Keerspoor Delft Station', place: 'Delft — tramlijn 19', created: day(10, 27),
+    rounds: [{ no: 1, created: day(10, 27), files: {}, runs: {} }] },
+];
+let draft = null;
+let openDetail = null; // { project, node, paint } van de detailpagina die nu open staat
+
+const app = document.getElementById('app');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const el = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+const fmtDate = d => d.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const fmtShort = d => d.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' });
+const fmtTime = d => `${fmtDate(d)} ${d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}`;
+// Lange bestandsnamen van voren inkorten: het eind (discipline, volgnummer, tekening-revisie) is het informatieve deel.
+const tail = (s, n = 21) => s.length > n ? '…' + s.slice(-(n - 1)) : s;
+const fmtSize = b => b >= 1e6 ? (b / 1e6).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' kB';
+
+const latest = p => p.rounds.at(-1);
+const viewIndex = p => p.view ?? p.rounds.length - 1;
+const list = (files, k) => files[k] || [];
+// Alle documenten van een ronde als [sleutel, document]; sleutel = "SPO|uid" of "BST|0".
+const entries = files => [...DRAWINGS.flatMap(d => list(files, d.key).map(f => [`${d.key}|${f.uid}`, f])),
+                          ...(files.BST ? [['BST|0', files.BST]] : [])];
+const keyDisc = k => k.split('|')[0];
+const nDrawings = files => DRAWINGS.reduce((n, d) => n + list(files, d.key).length, 0);
+const nDiscs = files => DRAWINGS.filter(d => list(files, d.key).length).length;
+const nDocs = files => entries(files).length;
+// Korte naam van een tekening: het tekeningnummer uit de bestandsnaam ("SPO-00034"), anders het eind van de naam.
+const docNo = f => f.name.toUpperCase().match(/(SPO|SVZ|CIV|WSB)-\d{3,5}/)?.[0] || tail(f.name, 18);
+const keyLabel = (k, f) => keyDisc(k) === 'BST' ? 'bestek' : docNo(f);
+// In een regel: vanaf het tekeningnummer ("SPO-00031-REV00.pdf"); de volledige naam staat in de tooltip.
+const shortName = f => f.name.match(/(SPO|SVZ|CIV|WSB)-\d{3,5}.*$/i)?.[0] || tail(f.name, 30);
+const lastChange = p => new Date(Math.max(p.created, ...p.rounds.flatMap(r => [r.created, ...entries(r.files).map(([, f]) => f.at)])));
+
+// Controle: past de disciplinecode in de bestandsnaam bij het vak? Alleen een waarschuwing, geen blokkade.
+function nameCheck(key, name) {
+  const codes = [...name.toUpperCase().matchAll(/(?:^|[^A-Z])(SPO|SVZ|CIV|WSB)(?=[^A-Z]|$)/g)].map(m => m[1]);
+  const looksBestek = /bestek/i.test(name);
+  if (key === 'BST') return codes.length && !looksBestek ? { msg: `Lijkt ${codes[0]}`, target: codes[0] } : null;
+  if (looksBestek && !codes.length) return { msg: 'Lijkt bestek', target: 'BST' };
+  if (codes.length && !codes.includes(key)) return { msg: `Lijkt ${codes[0]}`, target: codes[0] };
+  return null;
+}
+const warnedDocs = files => entries(files).filter(([k, f]) => nameCheck(keyDisc(k), f.name));
+const warnings = files => DISCIPLINES.filter(d => warnedDocs(files).some(([k]) => keyDisc(k) === d.key));
+
+const ANALYSES = {
+  tek: {
+    title: 'Tekeninganalyse',
+    desc: 'Vergelijkt de disciplinetekeningen onderling. Kan zonder bestek.',
+    start: 'Start tekeninganalyse',
+    reqs: files => [{ ok: nDrawings(files) >= 2, text: `Minimaal 2 tekeningen (${nDrawings(files)} aangeleverd)`, short: '2 tekeningen' }],
+    inputs: files => entries(files).filter(([k]) => keyDisc(k) !== 'BST'),
+    steps: ['Tekeningen inlezen', 'Lagen herkennen', 'Georefereren', 'Tekeningen vergelijken', 'Bevindingen samenstellen'],
+  },
+  bst: {
+    title: 'Bestekanalyse',
+    desc: 'Toetst de tekeningen aan de eisen in het bestek. Vereist het bestek.',
+    start: 'Start bestekanalyse',
+    reqs: files => [
+      { ok: !!files.BST, text: 'Bestek aangeleverd', short: 'bestek' },
+      { ok: nDrawings(files) >= 1, text: `Minimaal 1 tekening (${nDrawings(files)} aangeleverd)`, short: '1 tekening' },
+    ],
+    inputs: files => entries(files),
+    steps: ['Bestek inlezen', 'Eisen en verwijzingen extraheren', 'Tekeningen koppelen', 'Toetsen', 'Bevindingen samenstellen'],
+  },
+};
+// Een run onthoudt welke bestanden hij gebruikte; wijkt de ronde daarna af, dan is hij verouderd.
+const snapshot = (files, kind) => Object.fromEntries(ANALYSES[kind].inputs(files));
+function changesSince(run, files, kind) {
+  const now = snapshot(files, kind), was = run.used;
+  return [
+    ...Object.keys(now).filter(k => !(k in was)).map(k => `${keyLabel(k, now[k])} nieuw`),
+    // Vervangen = ander bestand (naam of tijdstip).
+    ...Object.keys(now).filter(k => k in was && (was[k].name !== now[k].name || +was[k].at !== +now[k].at)).map(k => `${keyLabel(k, now[k])} vervangen`),
+    ...Object.keys(was).filter(k => !(k in now)).map(k => `${keyLabel(k, was[k])} weg`),
+  ];
+}
+/* ---------- Analyse-simulatie ----------
+   Eerlijk over wat in het echt meetbaar is (zie skill analysis-screen):
+   deel 1 (inlezen, lagen, over elkaar leggen) is telbaar en goed te voorspellen → echt % en, pas na enkele
+   stappen, een resterende tijd. Deel 2 (één AI-beoordeling per afwijking) heeft een bekend aantal items maar
+   een onvoorspelbare duur per item → teller + bandbreedte op basis van gemeten tijden. Geen totaal-%.
+   De demo loopt SPEED× versneld; alle getoonde tijden zijn gesimuleerde tijden. */
+const SPEED = 18;
+const ERNST = ['Hoog', 'Midden', 'Laag'];
+const PARTS = {
+  tek: { p1: 'Vergelijken', p2: 'Afwijkingen beoordelen', ai: 'afwijking', aiPl: 'afwijkingen' },
+  bst: { p1: 'Bestek inlezen', p2: 'Bestekposten toetsen', ai: 'bestekpost', aiPl: 'bestekposten' },
+};
+const PLURAL = { tekening: 'tekeningen', laagpaar: 'laagparen', pagina: "pagina's", bestekpost: 'bestekposten', bevinding: 'bevindingen', afwijking: 'afwijkingen', item: 'items' };
+const plural = (n, unit) => `${n} ${n === 1 ? unit : PLURAL[unit] || unit}`;
+
+// Bevindingen van de demo (zelfde lijst als bevindingen.html / demo/demo_bevindingen_v2.xlsx). [id, analyse, ernst, discipline, tekeningen, bestekspost, bevinding]
+const KEERLUS_FINDINGS = [
+  ["W01", "bst", "Hoog", "WSB", "WSB-00013, WSB-00014", "613210", "Te verwijderen kabelputten PK315: WSB-00014 verwijdert put 1, 2, 3, 4 en 7 (5 st); kabelplan WSB-00013 toont daarnaast put 8 bij vecomlus DS634_1. Het bestek verwijdert 2 st ('Put 3 en 4')."],
+  ["c01", "bst", "Hoog", "CIV", "CIV-00018", "221120, 221130, 221140, 221150, 221210, 221220, 221230, 111110", "Grasbaan: het bestek rekent met een groter oppervlak dan de civiele tekening. Tekening: 94 + 105 + 42 + 47 + 32 = 320 m² teelaarde/gras. Bestek: 524 m² inlage en teelaarde (79 m³), 482 m² bemesten, zaaien, beregenen en maaien."],
+  ["K01", "bst", "Hoog", "CIV", "CIV-00017, CIV-00018", "950010, 221110", "Ballast verwijderen en terugplaatsen (ca. 106 m² × 0,20 m ≈ 21 m³) staat op de CIV-tekeningen, maar heeft geen eigen post. Het zit alleen in stelpost 950010 (€ 10.000, 't.b.v. stellen dwarsliggers') en 221110 (3,5 m³ extra ballast voor lichten/schiften)."],
+  ["K14", "bst", "Hoog", "CIV", "CIV-00017, CIV-00018", "", "Het civiele deel van het bestek verwijst voor de situering naar tekening CIV-00027, die niet is aangeleverd; de aangeleverde CIV-00017/-00018 en SVZ-00036 worden nergens in het bestek genoemd."],
+  ["P08", "tek", "Midden", "CIV", "CIV-00017, CIV-00018", "", "Tegelverharding wordt op verwijdertekening CIV-00017 verwijderd ('Losse betontegels langs en in het gehele spoor'), maar komt op aanbrengtekening CIV-00018 niet terug. Niet aangegeven hoe de strook wordt afgewerkt."],
+  ["W11", "bst", "Midden", "WSB/CIV", "WSB-00014, WSB-00016, CIV-00017", "610110, 620310", "Fundatie wisselkast WK634 dubbel in het bestek: post 610110 laat de bestaande fundatie hergebruiken in post 620310, maar 620310 beschrijft een nieuwe fundatie uit één stuk (760×1125×370 mm, ca. 360 kg; bestaand 760×1140×370 mm, 350 kg). WSB-00014: 'hergebruiken op nieuwe locatie'; WSB-00016: 'Aanbrengen: Wisselkast 634 & betonfundatie'. Een aannemer kan dit in eigen voordeel uitleggen."],
+  ["P03", "tek", "Midden", "WSB", "WSB-00013, WSB-00014", "", "Op verwijderkabelplan WSB-00013 hebben twee verschillende kasten (bij M7468 en M7469) dezelfde naam 'SK-634'. Volgens SVZ heten ze W634 en SK630. Risico op afkoppelen van de verkeerde kast."],
+  ["P19", "tek", "Midden", "CIV/SPO", "SPO-00031, SPO-00034, CIV-00017, CIV-00018", "", "Status dwarsliggers onduidelijk: SPO-legenda en -teksten noemen verwijderen en aanbrengen van 'dwarsliggers in ballast', terwijl de notitie ('De bestaande dwarsliggers worden hergebruikt') en CIV hergebruik noemen. Onduidelijk of de dwarsliggers blijven liggen of eruit gaan en terugkomen."],
+  ["P23", "tek", "Midden", "WSB", "WSB-00013", "", "Kabeltype van kabel (k) verschilt binnen het verwijderschema: in het schema 'CY 2x2,5 mm²', in de kabeltabel 'CY 3x2,5 mm²'."],
+  ["C06", "bst", "Midden", "CIV/WSB", "CIV-00018, WSB-00016", "231130, 625320", "Opsluitband verschilt in afmetingen. CIV-00018 schrijft 'Opsluitband 6x25 cm, op stelspecie 8 cm' (verhardingsvlakken) en '6x20 cm' (stopstreep); legenda 60X200. Bestek: profiel 60×200 mm in specie 5 cm (231130); stopstreep op kantafsluitingsband 100×15×5 cm (625320)."],
+  ["K02", "bst", "Midden", "SPO", "SPO-00034", "412112, 412120", "Spoorstaafbevestigingen: 8 st, terwijl de post zelf '2 sets per dwarsligger' zegt en de beschermkappen in de volgende post op 16 st staan (h.o.h. 0,75 m). HTM levert dit materiaal, dus er kan materiaal tekortkomen."],
+  ["K03", "bst", "Midden", "WSB", "WSB-00014", "613130", "Gepantserde slang wisselverwarming verwijderen: bestek 50 m, verwijdertekening WSB-00014 ca. 16 m."],
+  ["K04", "bst", "Midden", "WSB", "WSB-00013, WSB-00015", "614260, 624110", "Kabel W02.03 (minverbinding mast–spoor): kabelplannen Neopreen 1x50 mm² naar C1, bestek Neopreen 1x150 mm² (verwijderen én aanbrengen, aanbrengen naar C11)."],
+  ["K06", "bst", "Midden", "CIV", "CIV-00017", "121110, 131110", "CIV-00017 laat opsluitbanden en 'losse betontegels langs en in het gehele spoor' verwijderen; het bestek heeft alleen 2 × 5 m² opbreken betontegels en geen post voor opsluitbanden."],
+  ["K07", "bst", "Midden", "WSB", "WSB-00016", "622210, 621210, 621220", "Er komen 6 nieuwe PK315-putten (tekening en post 622210), maar het bestek heeft 4 werkputten 't.b.v. aanbrengen put(ten) PK315'."],
+  ["K09", "bst", "Midden", "SVZ/WSB", "SVZ-00036", "716010, 624110", "De spoorverbinding bij mast M7469 staat twee keer in het bestek: 716010 (bestaande verbinding losnemen en heraansluiten) én 624110 (nieuwe kabel M7469 → C11). SVZ-00036 zegt dat afdeling WSB van HTM dit doet."],
+  ["K10", "bst", "Midden", "SPO", "SPO-00031", "411210, 411010", "Post 411210 (verwijderen WIS0634) noemt de wisselsteller onder 'Verwijderen inclusief' én zegt 'Met uitzondering wisselsteller, zie bestekpost 411010'. Een aannemer kan kiezen welke lezing hij prijst."],
+  ["K11", "tek", "Midden", "WSB/SVZ", "WSB-00014, WSB-00016, SVZ-00036", "725020, 725030, 730010", "Mastaarding M7469: WSB-00014 tekent hem als te verwijderen en WSB-00016 als nieuw met overspanningsbeveiliging; SVZ-00036 en het bestek verwijderen aarde/overspanningsafleider alleen bij M7468."],
+  ["K12", "bst", "Midden", "WSB", "WSB-00014, WSB-00016", "615140, 624280", "Twee posten verwijzen naar een ander wissel: kortsluiter '16,2 meter vanaf punttong Wissel 67' en kabel naar 'zendertrafo HFE55S W117'. Dit project betreft wissel 634."],
+  ["K13", "bst", "Midden", "WSB", "WSB-00016", "625230, 626130, 626110", "Twee posten laten aanbrengen 'zoals aangegeven op' tekeningen van andere projecten (P051-015-…-WSB-00016 en P061-015-…-WSB-00058); post 626110 verwijst naar een niet-bestaande post 617110."],
+  ["P10", "tek", "Laag", "WSB", "WSB-00013", "", "Kabel (d) staat twee keer op het verwijderschema (vanaf M7468 én M7469), maar één keer in de kabeltabel ('(d) NEOPREEN 1x50mm², 5 m')."],
+];
+
+// In ronde 2 nieuw (bij CIV-00018 REV01, verzonnen voor de demo); de rest stond er in ronde 1 ook al.
+const NEW_IN_R2 = { tek: ['P08'], bst: ['C06'] };
+const CODES = {
+  tek: ['WIS0634', 'KBL-SVZ-02', 'FUND-WK', 'BALLAST', 'OPSLUITBAND', 'SEIN-HSW', 'GRASBAAN', 'MAST-7468', 'KAST-W634',
+        'STOPSTREEP', 'ZANDVANG', 'TBEF-1250', 'DWARSLIGGER', 'KABELROUTE', 'STROOMRAIL', 'WIS0635', 'VOEDING', 'TITELBLAD'],
+  bst: ['412410', '625320', '221110', '231130', '615110', '620510', '715010', '624212', '131120', '141110', '412112', '716010', '622030', '624280'],
+};
+const TEMPLATES = {
+  tek: [
+    (c, a, b, R) => `${c}: ligging wijkt ${4 + Math.floor(R() * 30)} cm af tussen ${a} en ${b}.`,
+    (c, a, b) => `${c} staat op ${a}, maar ontbreekt op ${b}.`,
+    (c, a, b, R) => `${c}: maatvoering op ${a} (${600 + Math.floor(R() * 40) * 25} mm) wijkt af van ${b}.`,
+    (c, a) => `${c}: ${a} verwijst naar een tekening die niet is aangeleverd.`,
+  ],
+  bst: [
+    (c, a) => `Post ${c}: hoeveelheid in het bestek wijkt af van tekening ${a}.`,
+    (c, a) => `Post ${c}: verwijst naar een ${a}-tekening die niet is aangeleverd.`,
+    (c, a) => `Post ${c}: omschrijving past niet bij wat ${a} toont.`,
+  ],
+};
+
+// Kleine deterministische random-generator, zodat voorbeeldprojecten bij elke keer laden hetzelfde ogen.
+function rng(seed) {
+  let h = 1779033703 ^ String(seed).length;
+  for (const c of String(seed)) { h = Math.imul(h ^ c.charCodeAt(0), 3432918353); h = h << 13 | h >>> 19; }
+  return () => { h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+}
+const pick = (R, list) => list[Math.floor(R() * list.length)];
+const discName = k => DISCIPLINES.find(d => d.key === k)?.name || k;
+
+function synth(R, p, kind, code, a, b, i, opt = {}) {
+  return { key: `${p.id}-${kind}-${code}-${i}`, id: '', ernst: opt.ernst || (R() < .2 ? 'Hoog' : R() < .6 ? 'Midden' : 'Laag'),
+           disc: b && kind === 'tek' ? `${a}/${b}` : a, tek: '', text: pick(R, TEMPLATES[kind])(code, a, b || a, R),
+           from: 1, gone: opt.gone ?? (R() < .3 ? 2 + Math.floor(R() * 2) : 99) };
+}
+
+// Alle mogelijke afwijkingen (items voor deel 2) per project en analyse, met hun bevindingen per ronde.
+function pool(p, kind) {
+  p.pool ??= {};
+  if (p.pool[kind]) return p.pool[kind];
+  const R = rng(p.id + kind);
+  const codes = CODES[kind];
+  let items;
+  if (p.id === 'P051-690') {
+    const real = KEERLUS_FINDINGS.filter(f => f[1] === kind).map(([id, , ernst, disc, tek, post, text]) =>
+      ({ key: id, id, ernst, disc, tek: tek === '-' ? '' : tek, post, text, from: NEW_IN_R2[kind].includes(id) ? 2 : 1, gone: 99 }));
+    const groups = new Map();
+    real.forEach((f, i) => {
+      const g = kind === 'tek' ? f.tek.split(', ').sort().join() : 'g' + Math.floor(i / 3);
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(f);
+    });
+    items = [...groups.values()].map((fs, i) => ({
+      code: kind === 'tek' ? codes[i % codes.length] : (fs.map(f => f.post.match(/\d{6}/)?.[0]).find(Boolean) || codes[i % codes.length]),
+      label: kind === 'tek' ? (fs[0].tek || 'algemeen').replace(/, /g, ' × ') : [...new Set(fs.map(f => f.disc))].join(' · '),
+      findings: fs,
+    }));
+    // Ronde 1 had nog bevindingen die met CIV REV01 zijn opgelost (verzonnen voor de demo).
+    for (let i = 0; i < (kind === 'tek' ? 8 : 5); i++) {
+      const it = items[(i * 3) % items.length];
+      it.findings.push(synth(R, p, kind, it.code, 'CIV', kind === 'tek' ? 'WSB' : '', 'r1-' + i, { gone: 2, ernst: i % 3 ? 'Laag' : 'Midden' }));
+    }
+    items.push({ code: codes.at(-1), label: kind === 'tek' ? 'Titelblokken' : 'Algemeen', findings: [] },
+               { code: codes.at(-2), label: kind === 'tek' ? 'Spoor × Wissels' : 'Wissels', findings: [] });
+  } else {
+    const files = latest(p).files;
+    const present = DRAWINGS.filter(d => list(files, d.key).length).map(d => d.key);
+    const keys = present.length >= 2 ? present : DRAWINGS.map(d => d.key);
+    const pairs = keys.flatMap((a, i) => keys.slice(i + 1).map(b => [a, b]));
+    items = Array.from({ length: 9 + Math.floor(R() * 5) }, (_, i) => {
+      const [a, b] = kind === 'tek' ? pairs[i % pairs.length] : [pick(R, keys)];
+      const code = codes[i % codes.length];
+      const nF = R() < .25 ? 0 : 1 + Math.floor(R() * 3);
+      return { code, label: kind === 'tek' ? `${discName(a)} × ${discName(b)}` : discName(a),
+               findings: Array.from({ length: nF }, (_, j) => synth(R, p, kind, code, a, b, j)) };
+    });
+  }
+  return p.pool[kind] = items;
+}
+
+// Draaiboek van één run: wanneer (in gesimuleerde ms) elke stap, elk item en elke regel in het logboek valt.
+function buildPlan(p, ri, kind, opt = {}) {
+  const r = p.rounds[ri];
+  const R = rng(`${p.id}${kind}${r.no}${opt.salt ?? Math.random()}`);
+  const span = (a, b) => (a + R() * (b - a)) * 1000;
+  const used = opt.retryOf ? opt.retryOf.used : snapshot(r.files, kind);
+  const drawings = Object.entries(used).filter(([k]) => keyDisc(k) !== 'BST').map(([, f]) => docNo(f));
+  const n = drawings.length;
+  const plan = { kind, round: r.no, used, steps: [], units: [], items: [], agent: [], log: [], T1: 0, retryOf: opt.retryOf };
+  const log = (t, text, warn) => plan.log.push({ t, text, warn: !!warn });
+  const current = pool(p, kind).map(it => ({ ...it, findings: it.findings.filter(f => f.from <= r.no && r.no < f.gone) }));
+  let t = 0;
+
+  if (opt.retryOf) {
+    const codes = opt.retryOf.failed.map(f => f.code);
+    plan.items = current.filter(it => codes.includes(it.code)).map(it => ({ ...it, foundAt: 0 }));
+    log(0, `Opnieuw proberen: ${plural(plan.items.length, PARTS[kind].ai)}`);
+  } else {
+    const P = kind === 'tek' ? n * (n - 1) / 2 * 6 + Math.round(R() * n) : 64;
+    // w = vaste kosten per eenheid (in het echt te kalibreren); daarop is het % van deel 1 gebaseerd.
+    plan.steps = kind === 'tek' ? [
+      { name: 'Tekeningen inlezen', unit: 'tekening', labels: drawings, w: 6, durs: drawings.map(() => span(4, 8)) },
+      { name: 'Lagen en georeferentie', unit: 'tekening', labels: drawings, w: 10, varies: true,
+        durs: drawings.map(() => R() < .3 ? span(16, 26) : span(6, 12)) },
+      { name: 'Lagen over elkaar leggen', unit: 'laagpaar', w: 2.4, eta: true, durs: Array.from({ length: P }, () => span(1.6, 3.2)) },
+    ] : [
+      { name: 'Bestek inlezen', unit: 'pagina', w: .7, durs: Array.from({ length: 84 }, () => span(.4, 1)) },
+      { name: 'Tekeningen inlezen', unit: 'tekening', labels: drawings, w: 6, durs: drawings.map(() => span(4, 8)) },
+      { name: 'Tekeningverwijzingen zoeken', unit: 'bestekpost', w: 1, eta: true, durs: Array.from({ length: P }, () => span(.6, 1.4)) },
+    ];
+    log(0, `Gestart · ronde ${r.no} · ${kind === 'tek' ? plural(n, 'tekening') : 'bestek en ' + plural(n, 'tekening')}`);
+    plan.steps.forEach((s, si) => {
+      s.durs.forEach((d, ui) => {
+        plan.units.push({ si, t0: t, t1: t += d });
+        if (s.varies && d > 15000) log(t, `${s.labels[ui]}: tekstherkenning (OCR) traag, ${Math.round(d / 1000)} s`, true);
+      });
+      log(t, `${s.name} gereed (${plural(s.durs.length, s.unit)})`);
+    });
+    plan.T1 = t;
+    const lastUnits = plan.units.filter(u => u.si === plan.steps.length - 1);
+    const k = Math.min(current.length, lastUnits.length);
+    plan.items = current.slice(0, k).map((it, i) =>
+      ({ ...it, foundAt: lastUnits[Math.min(lastUnits.length - 1, Math.floor((i + R() * .9) * lastUnits.length / k))].t1 }));
+    plan.items.forEach(it => log(it.foundAt, kind === 'tek'
+      ? `Afwijking: ${it.code} · ${it.label} (overlap ${(.45 + R() * .3).toFixed(2).replace('.', ',')})`
+      : `Post ${it.code} verwijst naar een tekening`));
+    const nFail = opt.fail ?? (R() < .4 ? 1 : 0);
+    if (nFail && plan.items.length) {
+      const empty = plan.items.filter(i => !i.findings.length);
+      (opt.fail !== undefined && empty.length ? pick(R, empty) : pick(R, plan.items)).fail = true;
+    }
+  }
+  plan.items.forEach(it => {
+    it.dur = it.fail ? 90000 : R() < .12 ? span(55, 85) : span(6, 38);
+    it.t0 = t; it.t1 = t += it.dur;
+    log(t, it.fail ? `${it.code}: beoordeling mislukt (time-out na 90 s)`
+      : `${it.code} beoordeeld · ${it.findings.length ? plural(it.findings.length, 'bevinding') : 'geen bevinding'}`, it.fail);
+  });
+  const nA = plan.items.length ? 3 + Math.floor(R() * 3) : 0;
+  for (let i = 0; i < nA; i++) plan.agent.push({ t0: t, t1: t += span(3, 8) });
+  plan.T = t;
+  if (nA) log(t, `Bevindingen samengesteld (${plan.items.filter(i => !i.fail).flatMap(i => i.findings).length})`);
+  plan.log.sort((a, b) => a.t - b.t);
+  return plan;
+}
+
+function record(plan, at) {
+  const findings = plan.items.filter(i => !i.fail).flatMap(i => i.findings);
+  const failed = plan.items.filter(i => i.fail).map(i => ({ code: i.code, label: i.label }));
+  const last = plan.steps.at(-1);
+  return { at, used: plan.used, findings, count: findings.length, failed, status: failed.length ? 'warn' : 'done',
+           ms: plan.T, p1: { n: last.durs.length, unit: last.unit, ms: plan.T1 }, nItems: plan.items.length, log: plan.log };
+}
+
+const runKey = (r, kind) => `${r.no}:${kind}`;
+const analysisHash = (p, r, kind) => `#/project/${encodeURIComponent(p.id)}/r${r.no}/${kind}`;
+const vNow = live => Math.min(live.plan.T, (performance.now() - live.t0) * SPEED);
+
+// De run-status leeft in de data (p.live), zodat hij navigatie en re-renders overleeft.
+function startRun(p, ri, kind, retryOf) {
+  const r = p.rounds[ri], key = runKey(r, kind);
+  const plan = buildPlan(p, ri, kind, retryOf ? { retryOf } : {});
+  delete p.cancelled[key];
+  const live = p.live[key] = { plan, t0: performance.now() };
+  live.timer = setTimeout(() => finishRun(p, ri, kind), plan.T / SPEED);
+}
+function finishRun(p, ri, kind) {
+  const r = p.rounds[ri], key = runKey(r, kind), live = p.live[key];
+  if (!live) return;
+  delete p.live[key];
+  const { plan } = live;
+  if (plan.retryOf) {
+    const run = plan.retryOf, offset = run.ms;
+    run.findings.push(...plan.items.filter(i => !i.fail).flatMap(i => i.findings));
+    run.failed = plan.items.filter(i => i.fail).map(i => ({ code: i.code, label: i.label }));
+    run.count = run.findings.length;
+    run.status = run.failed.length ? 'warn' : 'done';
+    run.ms += plan.T;
+    run.log = [...run.log, ...plan.log.map(e => ({ ...e, t: e.t + offset }))];
+  } else {
+    (r.runs[kind] ??= []).push(record(plan, new Date()));
+  }
+  if (location.hash !== analysisHash(p, r, kind)) p.unseen[key] = true;
+  if (openDetail?.project === p && openDetail.node.isConnected) openDetail.paint();
+  else if (!location.hash || location.hash === '#/') renderRegister();
+}
+function cancelRun(p, ri, kind) {
+  const r = p.rounds[ri], key = runKey(r, kind), live = p.live[key];
+  if (!live) return;
+  clearTimeout(live.timer);
+  p.cancelled[key] = { at: new Date(), v: vNow(live), retry: !!live.plan.retryOf };
+  delete p.live[key];
+}
+
+// Korte voortgangsregel voor de analysekaart (zonder tijdsband: die hoort op het analysescherm).
+function liveLine(plan, v) {
+  const P = PARTS[plan.kind];
+  if (v < plan.T1) return { text: `${P.p1} · ${p1Pct(plan, v)}%`, frac: p1Pct(plan, v) / 100 };
+  const k = plan.items.filter(i => i.t1 <= v).length;
+  if (k < plan.items.length) return { text: `${P.p2} · ${k} van ${plan.items.length}`, frac: k / plan.items.length };
+  return { text: 'Bevindingen samenstellen', frac: null };
+}
+function p1Pct(plan, v) {
+  const total = plan.steps.reduce((s, x) => s + x.w * x.durs.length, 0);
+  const done = plan.units.filter(u => u.t1 <= v).reduce((s, u) => s + plan.steps[u.si].w, 0);
+  return Math.floor(done / total * 100);
+}
+
+projects.forEach(p => { p.live = {}; p.unseen = {}; p.cancelled = {}; });
+// Afgeronde voorbeeldruns voor de Keerlus, zodat de samenvatting direct te zien is.
+{
+  const k = projects[0];
+  const seed = (ri, kind, at, fail) => { k.rounds[ri].runs[kind] = [record(buildPlan(k, ri, kind, { salt: 'seed', fail }), at)]; };
+  seed(0, 'tek', day(9, 5, 10, 12), 0);
+  seed(0, 'bst', day(9, 6, 11, 40), 0);
+  seed(1, 'tek', day(9, 10, 14, 32), 0);
+  seed(1, 'bst', day(9, 16, 9, 5), 0);
+}
+
+document.querySelectorAll('[data-z]').forEach(z => {
+  z.innerHTML = [...z.dataset.z].map(c => `<span>${c}</span>`).join('');
+  z.setAttribute('aria-hidden', 'true');
+});
+document.getElementById('tb-date').textContent = fmtDate(new Date());
+
+function setSheet(title, nr, nav) {
+  document.getElementById('tb-sheet').textContent = title;
+  document.getElementById('tb-nr').textContent = nr;
+  document.title = `${title} · HTM tekeningcontrole`;
+  document.querySelectorAll('[data-nav]').forEach(a =>
+    a.dataset.nav === nav ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+}
+
+function glyph(key, drawn) {
+  const paths = GLYPHS[key].map(p => ({ accent: p[0] === '!', d: p.replace('!', '') }));
+  return `<svg viewBox="${VIEWBOX[key] || '0 0 120 64'}" aria-hidden="true">
+    <g class="ghost">${paths.map(p => `<path d="${p.d}"/>`).join('')}</g>
+    <g class="ink${drawn ? ' drawn static' : ''}">${paths.map((p, i) =>
+      `<path pathLength="1" style="--i:${i}"${p.accent ? ' class="accent"' : ''} d="${p.d}"/>`).join('')}</g>
+  </svg>`;
+}
+
+// Mockup-upload: alleen naam en grootte worden bewaard (in het geheugen); de inhoud wordt nooit gelezen.
+// Klikken of slepen op een gevuld blok vervangt het bestand in deze ronde (met "ongedaan maken").
+// ctx = { round, readOnly, onChange, rerender, undo }
+function sheet(files, d, ctx) {
+  const f = files[d.key];
+  const warn = f ? nameCheck(d.key, f.name) : null;
+  // Alleen het bestek gebruikt dit blok nog; een verkeerd geplaatste tekening gaat naar de lijst van die discipline.
+  const canMove = warn && !ctx.readOnly && warn.target !== 'BST';
+  const inherited = f && f.from < ctx.round;
+  const meta = !f ? '' : ctx.undo
+    ? `<span class="got">Vervangen</span><button type="button" class="undo">Ongedaan maken</button>`
+    : `${inherited ? `<span class="inh">Ronde ${f.from} · ${fmtShort(f.at)}</span>`
+         : `<span class="got">Nieuw · ${fmtShort(f.at)}</span>`}
+       ${ctx.readOnly ? '' : '<span class="hint" aria-hidden="true">vervangen</span>'}`;
+  const node = el(`<div class="sheet ${f ? 'done' : 'empty'}${warn ? ' warned' : ''}${inherited ? ' inherited' : ''}${ctx.readOnly ? ' ro' : ''}">
+    <div class="sheet-head"><span class="code">${d.key}</span><span class="dname">${d.name}</span></div>
+    ${glyph(d.key, !!f)}
+    ${warn ? `<p class="namewarn"><span title="De bestandsnaam wijst op een ander vak dan ${d.key}">⚠ ${esc(warn.msg)}</span>${canMove
+      ? `<button type="button" data-move="${warn.target}" aria-label="Verplaats naar vak ${warn.target}">Naar ${warn.target}</button>` : ''}</p>` : ''}
+    <div class="sheet-foot" aria-live="polite">${f
+      ? `<span class="fn" title="${esc(f.name)} · ${fmtSize(f.size)}">${esc(tail(f.name))}</span>`
+      : `<span class="fn">${ctx.readOnly ? 'Niet aangeleverd in deze ronde' : 'Klik of sleep een PDF hierheen'}</span>`}</div>
+    ${f ? `<div class="meta">${meta}</div>` : ''}
+    <i class="carriage" aria-hidden="true"></i>
+    ${ctx.readOnly ? '' : `<label class="hit"><span class="sr">${f ? `Vervang ${d.name} (nu: ${esc(f.name)})` : `Kies PDF voor ${d.name}`}</span>
+      <input type="file" accept="application/pdf,.pdf"></label>`}
+  </div>`);
+  if (ctx.readOnly) return node;
+
+  const input = node.querySelector('.hit input');
+  const foot = node.querySelector('.sheet-foot');
+  const redraw = (undo, focus) => {
+    const fresh = sheet(files, d, { ...ctx, undo });
+    node.replaceWith(fresh);
+    if (focus) (fresh.querySelector('.undo') || fresh.querySelector('.hit input')).focus();
+    ctx.onChange?.();
+    return fresh;
+  };
+
+  node.querySelector('[data-move]')?.addEventListener('click', e => {
+    const t = e.currentTarget.dataset.move;
+    files[t] = [...list(files, t), { ...files[d.key], uid: ++uidSeq }];
+    delete files[d.key];
+    ctx.rerender();
+  });
+  node.querySelector('.undo')?.addEventListener('click', () => {
+    if (ctx.undo.previous) files[d.key] = ctx.undo.previous; else delete files[d.key];
+    redraw(null, true);
+  });
+  input.addEventListener('change', () => { if (input.files[0]) plot(input.files[0]); input.value = ''; });
+  node.addEventListener('dragover', e => { e.preventDefault(); node.classList.add('over'); });
+  node.addEventListener('dragleave', () => node.classList.remove('over'));
+  node.addEventListener('drop', e => {
+    e.preventDefault();
+    node.classList.remove('over');
+    if (e.dataTransfer.files[0]) plot(e.dataTransfer.files[0]);
+  });
+
+  function plot(upload) {
+    if (node.classList.contains('plotting')) return;
+    if (upload.type !== 'application/pdf' && !/\.pdf$/i.test(upload.name)) {
+      const before = foot.innerHTML;
+      foot.className = 'sheet-foot bad';
+      foot.innerHTML = `<span class="fn">Alleen PDF — ${esc(upload.name)} geweigerd</span>`;
+      setTimeout(() => { if (!node.classList.contains('plotting')) { foot.className = 'sheet-foot'; foot.innerHTML = before; } }, 3500);
+      return;
+    }
+    node.classList.add('plotting');
+    foot.className = 'sheet-foot';
+
+    const ink = node.querySelector('.ink');
+    const carriage = node.querySelector('.carriage');
+    const dur = reduceMotion ? 250 : 1400 + Math.min(upload.size / 1e6 * 150, 1200);
+    ink.classList.remove('drawn', 'static');
+    ink.getBoundingClientRect();
+    ink.style.setProperty('--dur', dur + 'ms');
+    ink.classList.add('drawn');
+
+    const start = performance.now();
+    (function tick(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const pct = Math.round(t * 100);
+      carriage.style.left = `calc(${pct}% - ${pct * 0.02}px)`;
+      foot.innerHTML = `<span class="fn">Inlezen · ${esc(upload.name)}</span><span>${pct}%</span>`;
+      if (t < 1) return requestAnimationFrame(tick);
+      const previous = files[d.key];
+      files[d.key] = doc(upload.name, upload.size, new Date(), ctx.round);
+      if (!node.isConnected) return;
+      const hadFocus = node.contains(document.activeElement);
+      const fresh = redraw(previous ? { previous } : null, hadFocus);
+      // "Ongedaan maken" blijft even staan en verdwijnt daarna vanzelf.
+      if (previous) setTimeout(() => { if (fresh.isConnected && fresh.querySelector('.undo')) redrawQuiet(fresh); }, 7000);
+    })(start);
+  }
+  function redrawQuiet(current) {
+    const fresh = sheet(files, d, { ...ctx, undo: null });
+    const focus = current.contains(document.activeElement);
+    current.replaceWith(fresh);
+    if (focus) fresh.querySelector('.hit input').focus();
+  }
+  return node;
+}
+
+// Plotter-animatie op een regel: de wagen loopt over de regel terwijl het bestand "wordt ingelezen".
+function plotRow(node, upload, label, done) {
+  const carriage = node.querySelector('.carriage');
+  const dur = reduceMotion ? 250 : 900 + Math.min(upload.size / 1e6 * 120, 900);
+  node.classList.add('plotting');
+  const start = performance.now();
+  (function tick(now) {
+    const t = Math.min(1, (now - start) / dur), pct = Math.round(t * 100);
+    carriage.style.left = `calc(${pct}% - ${pct * 0.02}px)`;
+    label.textContent = `Inlezen · ${upload.name} · ${pct}%`;
+    if (t < 1) return requestAnimationFrame(tick);
+    done();
+  })(start);
+}
+const isPdf = f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+
+// Eén regel per tekening: nummer en status in deze ronde. Klikken of slepen op de regel vervangt het bestand.
+function docRow(files, d, f, ctx, section) {
+  const warn = nameCheck(d.key, f.name);
+  const inherited = f.from < ctx.round;
+  const canMove = warn && !ctx.readOnly && (warn.target !== 'BST' || !files.BST);
+  const status = inherited ? `<span>Ronde ${f.from} · ${fmtShort(f.at)}</span>` : `<span class="got">Nieuw · ${fmtShort(f.at)}</span>`;
+  const node = el(`<li class="doc${inherited ? ' inherited' : ''}${warn ? ' warned' : ''}${ctx.readOnly ? ' ro' : ''}" data-uid="${f.uid}"${
+    ctx.readOnly ? '' : ' title="Klik of sleep een PDF op deze regel om de tekening te vervangen"'}>
+    ${glyph(d.key, true)}
+    <div class="doc-main">
+      <span class="fn" title="${esc(f.name)} · ${fmtSize(f.size)}">${esc(shortName(f))}</span>
+      <span class="doc-meta" aria-live="polite">${status}${ctx.readOnly ? '' : '<span class="hint" aria-hidden="true">vervangen</span>'}</span>
+      ${warn ? `<p class="namewarn"><span title="De bestandsnaam wijst op een andere discipline dan ${d.key}">⚠ ${esc(warn.msg)}</span>${canMove
+        ? `<button type="button" data-move="${warn.target}" aria-label="Verplaats ${esc(docNo(f))} naar ${warn.target}">Naar ${warn.target}</button>` : ''}</p>` : ''}
+    </div>
+    ${ctx.readOnly ? '' : `<button type="button" class="rm" aria-label="Verwijder ${esc(docNo(f))} uit deze ronde" title="Verwijderen uit deze ronde">×</button>
+      <label class="hit"><span class="sr">Vervang ${esc(f.name)}</span><input type="file" accept="application/pdf,.pdf"></label>`}
+    <i class="carriage" aria-hidden="true"></i>
+  </li>`);
+  if (ctx.readOnly) return node;
+
+  const replaceWith = upload => {
+    if (!isPdf(upload)) return section.say(`Alleen PDF — ${upload.name} geweigerd`);
+    plotRow(node, upload, node.querySelector('.doc-meta'), () => {
+      const i = list(files, d.key).indexOf(f);
+      const fresh = { ...doc(upload.name, upload.size, new Date(), ctx.round), uid: f.uid };
+      files[d.key] = list(files, d.key).map((x, j) => j === i ? fresh : x);
+      section.redraw({ text: `${docNo(f)} vervangen`, undo: () => { files[d.key] = list(files, d.key).map(x => x === fresh ? f : x); } });
+    });
+  };
+  const input = node.querySelector('.hit input');
+  input.addEventListener('change', () => { if (input.files[0]) replaceWith(input.files[0]); input.value = ''; });
+  node.addEventListener('dragover', e => { e.preventDefault(); node.classList.add('over'); });
+  node.addEventListener('dragleave', () => node.classList.remove('over'));
+  node.addEventListener('drop', e => {
+    e.preventDefault(); e.stopPropagation(); node.classList.remove('over');
+    const fs = e.dataTransfer.files;
+    if (fs.length > 1) section.say(`Een regel vervangt één tekening — sleep meerdere PDF's op "Tekening toevoegen".`);
+    else if (fs[0]) replaceWith(fs[0]);
+  });
+
+  node.querySelector('.rm').addEventListener('click', () => {
+    const before = list(files, d.key), wasEdited = files._edited;
+    files[d.key] = before.filter(x => x !== f);
+    files._edited = true;
+    section.redraw({ text: `${docNo(f)} verwijderd uit ronde ${ctx.round}`, undo: () => { files[d.key] = before; files._edited = wasEdited; } }, true);
+  });
+  node.querySelector('[data-move]')?.addEventListener('click', e => {
+    const t = e.currentTarget.dataset.move;
+    files[d.key] = list(files, d.key).filter(x => x !== f);
+    files._edited = true;
+    const moved = { ...f, uid: ++uidSeq };
+    if (t === 'BST') files.BST = f; else files[t] = [...list(files, t), moved];
+    ctx.rerender();
+    // Laat zien waar de tekening is gebleven: melding in het doelkopje en focus op de verplaatste regel.
+    const target = app.querySelector(`.dsec[aria-labelledby="h-${t}"]`);
+    const msg = target?.querySelector('.undo-line');
+    if (msg) { msg.textContent = `${docNo(f)} verplaatst van ${d.key} naar ${t}`; setTimeout(() => { if (msg.isConnected) msg.textContent = ''; }, 5000); }
+    (target?.querySelector(`[data-uid="${moved.uid}"] .rm`) || app.querySelector('.grid1 .hit input'))?.focus();
+  });
+  return node;
+}
+
+// Een kopje per discipline met de lijst tekeningen en een regel om er (meerdere) toe te voegen.
+// ctx = { round, readOnly, onChange, rerender }; undo = { text, undo } van de laatste wijziging in dit kopje.
+function discSection(files, d, ctx, undo) {
+  const docs = list(files, d.key);
+  const node = el(`<section class="dsec${docs.length ? '' : ' none'}${ctx.readOnly ? ' ro' : ''}" aria-labelledby="h-${d.key}">
+    <header class="disc-head"><span class="code">${d.key}</span><h3 id="h-${d.key}">${d.name}</h3><span class="dcount"></span></header>
+    <ol class="doclist"></ol>
+    ${ctx.readOnly ? (docs.length ? '' : '<p class="addrow"><small>Geen tekeningen in deze ronde</small></p>')
+      : `<div class="addrow"><span class="plus" aria-hidden="true">+</span><span class="addlabel">Tekening toevoegen</span>
+          <small class="addhint">${docs.length ? '' : "klik of sleep één of meer PDF's"}</small>
+          <label class="hit"><span class="sr">Voeg ${d.name}-tekeningen toe</span><input type="file" accept="application/pdf,.pdf" multiple></label>
+          <i class="carriage" aria-hidden="true"></i></div>`}
+    <p class="undo-line" aria-live="polite"></p>
+  </section>`);
+  const line = node.querySelector('.undo-line');
+  const section = {
+    count() {
+      const ds = list(files, d.key), bad = ds.filter(f => nameCheck(d.key, f.name)).length;
+      const c = node.querySelector('.dcount');
+      c.textContent = !ds.length ? 'nog geen tekening' : `${plural(ds.length, 'tekening')}${bad ? ` · ${bad} naamwaarschuwing` : ''}`;
+      c.className = 'dcount' + (bad ? ' bad' : '');
+    },
+    say(text) { line.textContent = text; setTimeout(() => { if (line.textContent === text) line.textContent = ''; }, 4000); },
+    redraw(change, focusUndo) {
+      const fresh = discSection(files, d, ctx, change);
+      // Kan intussen al opnieuw getekend zijn (twee acties tegelijk): vervang dan het kopje dat nu op de pagina staat.
+      const current = node.isConnected ? node : app.querySelector(`.dsec[aria-labelledby="h-${d.key}"]`);
+      current?.replaceWith(fresh);
+      ctx.onChange?.();
+      if (focusUndo) fresh.querySelector('.undo-line button')?.focus();
+      return fresh;
+    },
+  };
+  docs.forEach(f => node.querySelector('.doclist').append(docRow(files, d, f, ctx, section)));
+  section.count();
+
+  if (undo) {
+    line.innerHTML = `${esc(undo.text)}<button type="button">Ongedaan maken</button>`;
+    line.querySelector('button').addEventListener('click', () => { undo.undo(); section.redraw(null).querySelector('.addrow input')?.focus(); });
+    setTimeout(() => {
+      if (!line.isConnected || !line.querySelector('button')) return;
+      const hadFocus = line.contains(document.activeElement);
+      line.textContent = '';
+      if (hadFocus) node.querySelector('.addrow input')?.focus(); // focus niet laten wegvallen naar de pagina
+    }, 7000);
+  }
+  if (ctx.readOnly) return node;
+
+  const add = node.querySelector('.addrow');
+  const input = add.querySelector('input');
+  const addFiles = uploads => {
+    const ok = [...uploads].filter(isPdf), bad = [...uploads].filter(u => !isPdf(u));
+    if (bad.length) section.say(`Alleen PDF — ${bad.map(u => u.name).join(', ')} geweigerd`);
+    if (!ok.length) return;
+    const total = { name: ok.length > 1 ? `${ok.length} bestanden` : ok[0].name, size: ok.reduce((s, u) => s + u.size, 0) };
+    add.querySelector('.addhint').textContent = '';
+    plotRow(add, total, add.querySelector('.addlabel'), () => {
+      const added = ok.map(u => doc(u.name, u.size, new Date(), ctx.round));
+      files[d.key] = [...list(files, d.key), ...added];
+      const fresh = section.redraw(null);
+      fresh.querySelector('.addrow input')?.focus();
+    });
+  };
+  input.addEventListener('change', () => { if (input.files.length) addFiles(input.files); input.value = ''; });
+  add.addEventListener('dragover', e => { e.preventDefault(); add.classList.add('over'); });
+  add.addEventListener('dragleave', () => add.classList.remove('over'));
+  add.addEventListener('drop', e => { e.preventDefault(); add.classList.remove('over'); if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+  return node;
+}
+
+// Tekeningen per discipline (kopjes met lijsten) + bestek rechts. Tellers in de groepskoppen werken bij na elke wijziging.
+function documents(files, ctx) {
+  const node = el(`<div class="docs">
+    <section class="group tek" aria-labelledby="g-tek"><header><h2 id="g-tek">Tekeningen</h2><span class="gcount" data-g="tek"></span></header><div class="discs"></div></section>
+    <section class="group" aria-labelledby="g-bst"><header><h2 id="g-bst">Bestek</h2><span class="gcount" data-g="bst"></span></header><div class="grid1"></div></section>
+  </div>`);
+  const refresh = () => {
+    const n = nDrawings(files), nd = nDiscs(files);
+    const tBad = warnedDocs(files).filter(([k]) => keyDisc(k) !== 'BST').length;
+    const t = node.querySelector('[data-g="tek"]');
+    t.textContent = tBad ? `${plural(n, 'tekening')} · ${tBad} naamwaarschuwing${tBad > 1 ? 'en' : ''}`
+      : `${plural(n, 'tekening')} · ${nd} van 4 disciplines`;
+    t.className = 'gcount' + (tBad ? ' bad' : nd === 4 ? ' full' : '');
+    const b = node.querySelector('[data-g="bst"]');
+    const bBad = files.BST && nameCheck('BST', files.BST.name);
+    b.textContent = bBad ? 'naamwaarschuwing' : files.BST ? 'ontvangen' : 'ontbreekt';
+    b.className = 'gcount' + (bBad ? ' bad' : files.BST ? ' full' : '');
+  };
+  const sctx = { ...ctx, onChange: () => { refresh(); ctx.onChange?.(); } };
+  DRAWINGS.forEach(d => node.querySelector('.discs').append(discSection(files, d, sctx)));
+  node.querySelector('.grid1').append(sheet(files, BESTEK, sctx));
+  refresh();
+  return node;
+}
+
+// Verwachte duur van deel 1 (vaste kosten per eenheid); deel 2 hangt af van het aantal afwijkingen.
+function expectP1(files, kind) {
+  const n = nDrawings(files);
+  const s = kind === 'tek' ? n * 16 + (n * (n - 1) / 2 * 6) * 2.4 : 84 * .7 + n * 6 + 64;
+  return Math.max(1, Math.round(s / 60));
+}
+
+function runCard(p, ri, kind, readOnly) {
+  const a = ANALYSES[kind];
+  const r = p.rounds[ri];
+  const key = runKey(r, kind);
+  const live = p.live[key];
+  const last = r.runs[kind]?.at(-1);
+  const cancelled = p.cancelled[key];
+  const prevRound = p.rounds[ri - 1];
+  const prevLast = prevRound?.runs[kind]?.at(-1);
+  const reqs = a.reqs(r.files);
+  const ready = reqs.every(x => x.ok);
+  const reasons = last ? changesSince(last, r.files, kind) : [];
+  const stale = reasons.length > 0;
+  const dot = p.unseen[key] ? '<span class="dot" title="Nieuw resultaat, nog niet bekeken"></span><span class="sr">nieuw resultaat</span>' : '';
+  const state = live ? ['busy', 'Bezig'] : cancelled && !last ? ['', 'Geannuleerd'] : stale ? ['stale', 'Verouderd']
+    : last ? (last.status === 'warn' ? ['stale', 'Gereed met waarschuwingen'] : ['done', 'Gereed']) : ['', 'Niet gedraaid'];
+  const missing = reqs.filter(x => !x.ok).map(x => x.short);
+  const misnamed = [...new Set(a.inputs(r.files).filter(([k, f]) => nameCheck(keyDisc(k), f.name)).map(([k, f]) => keyLabel(k, f)))];
+  const cardWarn = misnamed.length && !readOnly && !live
+    ? `<p class="cardwarn">⚠ ${misnamed.join(', ')}: bestandsnaam past niet bij de discipline — controleer vóór het draaien.</p>` : '';
+  const screen = analysisHash(p, r, kind);
+
+  let foot;
+  if (live) {
+    foot = `<div class="progress" role="status"><div class="bar"><i></i></div><div class="step"><span></span></div></div>
+      <a class="btn sm ghost" href="${screen}">Bekijk voortgang</a>`;
+  } else {
+    const delta = last && prevLast ? last.count - prevLast.count : 0;
+    const was = last && prevLast ? ` <span class="was">· ${delta === 0 ? 'gelijk aan' : (delta < 0 ? '−' : '+') + Math.abs(delta) + ' t.o.v.'} ronde ${prevRound.no}</span>` : '';
+    const failNote = last?.failed.length ? ` · <span class="bad">${plural(last.failed.length, 'item')} niet beoordeeld</span>` : '';
+    const info = last ? `<span class="info"><b>${last.count} bevindingen</b>${was}${failNote} · ${fmtTime(last.at)}</span>`
+      : readOnly ? `<span class="info">Niet gedraaid in deze ronde.</span>`
+      : cancelled ? `<span class="info">Laatste poging geannuleerd na ${fmtDur(cancelled.v)}.</span>`
+      : ready ? `<span class="info expect">Duur: ${PARTS[kind].p1.toLowerCase()} ca. ${expectP1(r.files, kind)} min, daarna enkele minuten AI-beoordeling.</span>` : '';
+    const warn = stale && !readOnly ? `<span class="warn">Verouderd: ${esc(reasons.join(', '))} sinds de laatste run.</span>` : '';
+    const view = last || cancelled ? `<a class="btn sm ghost" href="${screen}">${last ? 'Bekijk samenvatting' : 'Bekijk'}</a>${dot}` : '';
+    if (readOnly) {
+      foot = `${info}${view}`;
+    } else {
+      const label = last ? 'Opnieuw draaien' : a.start;
+      const cls = last && !stale ? 'btn sm ghost' : 'btn sm';
+      const why = ready ? '' : `<span class="why">Eerst nodig: ${esc(missing.join(', '))}</span>`;
+      foot = `${info}${warn}<button class="${cls}" type="button" data-act="start"${ready ? '' : ' aria-disabled="true"'}>${label}</button>${view}${why}`;
+    }
+  }
+
+  const node = el(`<article class="run">
+    <header><h3>${a.title}</h3><span class="state ${state[0]}">${state[1]}</span></header>
+    <div class="run-body">
+      <p>${a.desc}</p>
+      <ul class="reqs">${reqs.map(x => `<li><span class="${x.ok ? 'y' : 'n'}" aria-hidden="true">${x.ok ? '✓' : '✕'}</span>
+        <span>${x.text}<span class="sr">: ${x.ok ? 'voldaan' : 'niet voldaan'}</span></span></li>`).join('')}</ul>
+      ${cardWarn}
+      <div class="run-foot">${foot}</div>
+    </div>
+  </article>`);
+
+  node.querySelector('[data-act="start"]')?.addEventListener('click', e => {
+    if (e.currentTarget.getAttribute('aria-disabled') === 'true') return;
+    startRun(p, ri, kind);
+    location.hash = screen;
+  });
+
+  if (live) {
+    const bar = node.querySelector('.bar');
+    const stepEl = node.querySelector('.step span');
+    const tick = () => {
+      if (!node.isConnected || p.live[key] !== live) return;
+      const l = liveLine(live.plan, vNow(live));
+      bar.classList.toggle('indet', l.frac == null);
+      bar.firstElementChild.style.width = l.frac == null ? '' : (l.frac * 100).toFixed(1) + '%';
+      stepEl.textContent = l.text;
+      setTimeout(tick, 300);
+    };
+    setTimeout(tick); // pas na invoegen in de pagina
+  }
+  return node;
+}
+
+function renderRegister() {
+  openDetail = null;
+  setSheet('Projectregister', '01', 'register');
+  const got = projects.reduce((n, p) => n + nDocs(latest(p).files), 0);
+  const rows = [...projects].sort((a, b) => lastChange(b) - lastChange(a)).map(p => {
+    const r = latest(p);
+    const bad = warnings(r.files).map(d => d.key);
+    return `
+    <tr data-id="${esc(p.id)}">
+      <td class="nr">${esc(p.number)}</td>
+      <td class="pname"><a href="#/project/${encodeURIComponent(p.id)}">${esc(p.name)}</a><small>${esc(p.place || '—')}</small></td>
+      ${DISCIPLINES.map(d => {
+        const warn = bad.includes(d.key) ? ' warn' : '';
+        if (d.key === 'BST') {
+          const s = !r.files.BST ? 'ontbreekt' : warn ? 'ontvangen, naam wijkt af' : 'ontvangen';
+          return `<td class="d"><span class="mark${r.files.BST ? ' ok' : ''}${warn}" title="${d.name}: ${s}"></span><span class="sr">${d.name}: ${s}</span></td>`;
+        }
+        // Eén blokje per tekening (max. 5 getekend), met het aantal erachter.
+        const n = list(r.files, d.key).length;
+        const s = !n ? 'geen tekeningen' : `${plural(n, 'tekening')}${warn ? ', naam wijkt af' : ''}`;
+        return `<td class="d"><span class="stack" title="${d.name}: ${s}">${n
+          ? Array.from({ length: Math.min(n, 5) }, () => `<span class="mark ok${warn}"></span>`).join('') + `<b>${n}</b>`
+          : '<span class="mark"></span>'}</span><span class="sr">${d.name}: ${s}</span></td>`;
+      }).join('')}
+      <td class="count${nDiscs(r.files) === 4 && r.files.BST ? ' full' : ''}">${plural(nDrawings(r.files), 'tekening')}${r.files.BST ? ' + bestek' : ''}</td>
+      <td class="count">Ronde ${r.no} <span class="date">· ${fmtShort(r.created)}</span>${
+        Object.keys(p.live).length ? ' <span class="busy-s">· analyse bezig</span>' : ''}${
+        Object.keys(p.unseen).length ? ' <span class="dot" title="Nieuw analyseresultaat, nog niet bekeken"></span><span class="sr">nieuw analyseresultaat</span>' : ''}</td>
+      <td class="date">${fmtDate(lastChange(p))}</td>
+      <td class="go" aria-hidden="true">→</td>
+    </tr>`;
+  }).join('');
+
+  const view = el(`<section>
+    <div class="view-head">
+      <div><p class="label">Overzicht</p><h1>Projectregister</h1></div>
+      <dl class="tally">
+        <div><dt>Projecten</dt><dd>${projects.length}</dd></div>
+        <div><dt>Documenten</dt><dd>${got}</dd></div>
+      </dl>
+      <a class="btn" href="#/nieuw">+ Nieuw project</a>
+    </div>
+    ${projects.length ? `<div class="tablewrap"><table class="register">
+      <thead><tr><th>Nr.</th><th>Project</th>${DISCIPLINES.map(d => `<th class="d" title="${d.name}">${d.key}</th>`).join('')}
+        <th>Aangeleverd</th><th>Controleronde</th><th>Gewijzigd</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+      <p class="legend"><span><span class="mark ok"></span>één blokje per tekening (laatste ronde)</span><span><span class="mark"></span>ontbreekt</span>
+        <span><span class="mark ok warn"></span>bestandsnaam past niet bij discipline</span>
+        <span><span class="dot"></span>nieuw analyseresultaat</span></p>`
+      : `<p class="empty">Nog geen projecten. Begin met "+ Nieuw project".</p>`}
+  </section>`);
+  view.querySelectorAll('tr[data-id]').forEach(tr =>
+    tr.addEventListener('click', e => { if (!e.target.closest('a')) location.hash = '#/project/' + encodeURIComponent(tr.dataset.id); }));
+  app.replaceChildren(view);
+}
+
+function renderNew() {
+  openDetail = null;
+  setSheet('Nieuw project', '02', 'nieuw');
+  draft ??= { number: '', name: '', place: '', files: {} };
+  const view = el(`<section>
+    <div class="view-head">
+      <div><p class="label">Invoer</p><h1>Nieuw project</h1></div>
+      <span></span><a class="back" href="#/">← Terug naar register</a>
+    </div>
+    <form class="new" novalidate>
+      <fieldset class="fields">
+        <legend>Projectgegevens</legend>
+        <label class="field"><span>Projectnummer</span>
+          <input name="number" class="mono" placeholder="bijv. P051-690" autocomplete="off" value="${esc(draft.number)}"></label>
+        <label class="field"><span>Projectnaam</span>
+          <input name="name" placeholder="bijv. Keerlus Wateringseveld" autocomplete="off" value="${esc(draft.name)}"></label>
+        <label class="field"><span>Locatie of omschrijving <em>(optioneel)</em></span>
+          <input name="place" placeholder="bijv. Den Haag — tramlijn 17" autocomplete="off" value="${esc(draft.place)}"></label>
+        <p class="err" role="alert"></p>
+        <div><button class="btn" type="submit">Project aanmaken →</button></div>
+        <p class="note">Demo: voeg per discipline één of meer PDF's toe (bijv. verwijder- en aanbrengtekening, kabelplannen). Er wordt niets opgeslagen of verstuurd. Dit wordt controleronde 1; documenten kun je ook later aanleveren.</p>
+      </fieldset>
+      <div class="docs-slot"></div>
+    </form>
+  </section>`);
+  const form = view.querySelector('form');
+  const err = view.querySelector('.err');
+  view.querySelector('.docs-slot').replaceWith(documents(draft.files, { round: 1, readOnly: false, rerender: renderNew }));
+
+  form.addEventListener('input', e => { if (e.target.name) draft[e.target.name] = e.target.value; });
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const number = draft.number.trim().toUpperCase();
+    const name = draft.name.trim();
+    let problem = '', field = 'number';
+    if (!number) problem = 'Vul een projectnummer in.';
+    else if (!name) [problem, field] = ['Vul een projectnaam in.', 'name'];
+    else if (projects.some(p => p.id === number)) problem = `Projectnummer ${number} bestaat al in het register.`;
+    if (problem) {
+      err.textContent = problem;
+      form.elements[field].focus();
+      return;
+    }
+    const now = new Date();
+    projects.push({ id: number, number, name, place: draft.place.trim(), created: now, live: {}, unseen: {}, cancelled: {},
+                    rounds: [{ no: 1, created: now, files: draft.files, runs: {} }] });
+    draft = null;
+    location.hash = '#/project/' + encodeURIComponent(number);
+  });
+  app.replaceChildren(view);
+}
+
+function renderDetail(p, note) {
+  const ri = viewIndex(p);
+  const r = p.rounds[ri];
+  const cur = latest(p);
+  const readOnly = ri < p.rounds.length - 1;
+  // Een nieuwe ronde heeft pas zin als de huidige ronde zelf iets nieuws bevat (ronde 1 telt altijd).
+  const curChanged = cur.no === 1 || cur.files._edited || entries(cur.files).some(([, f]) => f.from === cur.no);
+  setSheet(`${p.name} — ronde ${r.no}`, p.number, null);
+
+  const tabs = p.rounds.map((x, i) => `<button type="button" role="tab" data-r="${i}" aria-selected="${i === ri}">Ronde ${x.no}<small>${fmtShort(x.created)}</small>${
+    i === p.rounds.length - 1 ? '<span class="latest">· actueel</span>' : ''}${
+    Object.keys(p.unseen).some(k => k.startsWith(x.no + ':')) ? '<span class="dot" title="Nieuw analyseresultaat"></span>' : ''}</button>`).join('');
+  const view = el(`<section>
+    <div class="view-head">
+      <div><p class="label"><span class="pnr">${esc(p.number)}</span> · ${esc(p.place || 'geen locatie')}</p><h1>${esc(p.name)}</h1></div>
+      <div><div class="meter" aria-hidden="true"></div><div class="meter-label"></div></div>
+      <a class="back" href="#/">← Terug naar register</a>
+    </div>
+    <div class="rounds">
+      <span class="rounds-label" id="rl">Controleronde</span>
+      <div class="tabs" role="tablist" aria-labelledby="rl">${tabs}</div>
+      <button class="btn sm ghost" type="button" data-new${curChanged ? '' : ' aria-disabled="true"'}>+ Nieuwe ronde</button>
+      <span class="round-note${note?.warn ? ' warn' : ''}" aria-live="polite">${note ? esc(note.text)
+        : curChanged ? '' : `Vervang eerst gewijzigde documenten in ronde ${cur.no}.`}</span>
+    </div>
+    ${readOnly ? `<p class="readonly">Ronde ${r.no} · alleen lezen — resultaten van deze ronde blijven bewaard.
+      <button type="button" data-r="${p.rounds.length - 1}">Naar ronde ${cur.no} (actueel)</button></p>` : ''}
+    <div class="workbench">
+      <section class="group analyses" aria-labelledby="g-an"><header><h2 id="g-an">Analyses · ronde ${r.no}</h2></header><div class="runs"></div></section>
+    </div>
+  </section>`);
+  const meter = view.querySelector('.meter');
+  const label = view.querySelector('.meter-label');
+  const runs = view.querySelector('.runs');
+  const paint = () => runs.replaceChildren(runCard(p, ri, 'tek', readOnly), runCard(p, ri, 'bst', readOnly));
+  const refresh = () => {
+    // Per discipline een groepje blokjes (één per tekening), daarna het bestek.
+    meter.innerHTML = DISCIPLINES.map(d => {
+      const n = d.key === 'BST' ? (r.files.BST ? 1 : 0) : list(r.files, d.key).length;
+      return `<span class="mg" title="${d.key}: ${d.key === 'BST' ? (n ? 'ontvangen' : 'ontbreekt') : plural(n, 'tekening')}">${
+        n ? '<i class="ok"></i>'.repeat(Math.min(n, 6)) : '<i></i>'}</span>`;
+    }).join('');
+    label.textContent = `${plural(nDrawings(r.files), 'tekening')} in ${nDiscs(r.files)} van 4 disciplines${r.files.BST ? ' + bestek' : ', bestek ontbreekt'} · ronde ${r.no}`;
+    paint();
+  };
+  view.querySelector('.analyses').before(documents(r.files, { round: r.no, readOnly, onChange: refresh, rerender: () => renderDetail(p) }));
+
+  view.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => {
+    p.view = +b.dataset.r;
+    renderDetail(p);
+    app.querySelector(`.tabs [data-r="${p.view}"]`).focus();
+  }));
+  view.querySelector('[data-new]').addEventListener('click', e => {
+    if (e.currentTarget.getAttribute('aria-disabled') === 'true') return;
+    const analysed = Object.values(cur.runs).some(list => list?.length);
+    p.rounds.push({ no: cur.no + 1, created: new Date(), files: cloneFiles(cur.files), runs: {} });
+    p.view = p.rounds.length - 1;
+    renderDetail(p, analysed
+      ? { text: `Ronde ${cur.no + 1} gestart met de documenten uit ronde ${cur.no}. Vervang wat gewijzigd is en draai de analyses opnieuw.` }
+      : { text: `Ronde ${cur.no + 1} gestart. Let op: ronde ${cur.no} is nooit geanalyseerd.`, warn: true });
+    app.querySelector('[data-new]').focus();
+  });
+
+  openDetail = { project: p, node: view, paint };
+  refresh();
+  app.replaceChildren(view);
+}
+
+/* ---------- Analysescherm: voortgang tijdens de run, samenvatting na afloop ---------- */
+const fmtDur = ms => {
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`;
+};
+const fmtClock = ms => { const s = Math.floor(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+const ernstCounts = fs => ERNST.map(e => fs.filter(f => f.ernst === e).length);
+
+function partBlock(no, name, state, sum, body = '') {
+  return `<section class="part ${state}" aria-label="Deel ${no}: ${esc(name)}">
+    <header><span class="pno" aria-hidden="true">${state === 'done' ? '✓' : no}</span><h2>${esc(name)}</h2><span class="psum">${sum}</span></header>
+    ${body ? `<div class="part-body">${body}</div>` : ''}</section>`;
+}
+
+// Resterende tijd deel 1: alleen in de laatste (regelmatige) stap, na minstens 5 eenheden, en niet als de tempo's sterk wisselen.
+function p1Eta(plan, v) {
+  const si = plan.steps.length - 1;
+  const us = plan.units.filter(u => u.si === si);
+  const done = us.filter(u => u.t1 <= v);
+  if (!plan.steps[si].eta || done.length < 5 || done.length === us.length) return '';
+  const d = done.map(u => u.t1 - u.t0), m = d.reduce((a, b) => a + b) / d.length;
+  const sd = Math.sqrt(d.reduce((a, b) => a + (b - m) ** 2, 0) / d.length);
+  if (sd / m > .6) return '';
+  const cur = us[done.length];
+  const left = (us.length - done.length) * m - Math.max(0, v - cur.t0);
+  return left < 10000 ? 'nog enkele seconden' : `nog ca. ${Math.ceil(left / 10000) * 10} s`;
+}
+// Bandbreedte deel 2: pas na 3 gemeten items en bij minstens 5 items; gemiddelde ± spreiding, in hele minuten.
+function p2Band(plan, v) {
+  const done = plan.items.filter(i => i.t1 <= v && !i.fail);
+  const left = plan.items.filter(i => i.t1 > v);
+  if (plan.items.length < 5 || done.length < 3 || !left.length) return '';
+  const d = done.map(i => i.dur), m = d.reduce((a, b) => a + b) / d.length;
+  const sd = Math.sqrt(d.reduce((a, b) => a + (b - m) ** 2, 0) / d.length);
+  const mid = left.length * m - Math.max(0, v - left[0].t0), spread = Math.sqrt(left.length) * sd;
+  const lo = Math.max(1, Math.floor((mid - spread) / 60000)), hi = Math.max(1, Math.ceil((mid + spread) / 60000));
+  return hi <= 1 ? 'nog ongeveer een minuut' : lo >= hi ? `nog rond ${hi} min` : `nog ca. ${lo}–${hi} min`;
+}
+
+function progressHTML(plan, v) {
+  const P = PARTS[plan.kind];
+  let html = '';
+  if (!plan.steps.length) {
+    html += partBlock(1, P.p1, 'done', 'uit de eerdere run');
+  } else if (v >= plan.T1) {
+    const ls = plan.steps.at(-1), k = plan.items.length;
+    html += partBlock(1, P.p1, 'done', plan.kind === 'tek'
+      ? `${plural(ls.durs.length, ls.unit)} · ${plural(k, 'afwijking')} · ${fmtDur(plan.T1)}`
+      : `${plural(ls.durs.length, ls.unit)} doorzocht · ${k} met tekeningverwijzing · ${fmtDur(plan.T1)}`);
+  } else {
+    const steps = plan.steps.map((s, si) => {
+      const us = plan.units.filter(u => u.si === si);
+      const done = us.filter(u => u.t1 <= v).length;
+      const st = done === us.length ? 'ok' : us[0].t0 <= v ? 'now' : 'todo';
+      const which = st === 'now' && s.labels ? ` · ${s.labels[done]}` : '';
+      const mini = st === 'now' ? `<i class="mini" aria-hidden="true"><b style="width:${Math.round(done / us.length * 100)}%"></b></i>` : '<i></i>';
+      return `<li class="${st}"><span class="ic" aria-hidden="true">${st === 'ok' ? '✓' : st === 'now' ? '▸' : ''}</span><span>${s.name}${
+        s.varies && st === 'now' ? ' <small>(duur wisselt per tekening)</small>' : ''}</span>
+        <span class="num">${st === 'now' ? `${s.unit} ${done + 1} van ${us.length}${which}` : plural(us.length, s.unit)}</span>${mini}</li>`;
+    }).join('');
+    const pct = p1Pct(plan, v);
+    const found = plan.items.filter(i => i.foundAt <= v).length;
+    const what = plan.kind === 'tek'
+      ? `<b>${found}</b> ${found === 1 ? 'laag wijkt' : 'lagen wijken'} af tot nu toe`
+      : `<b>${found}</b> ${found === 1 ? 'post verwijst' : 'posten verwijzen'} naar een tekening`;
+    html += partBlock(1, P.p1, 'active', `<span title="Gewogen schatting: elke stap heeft vaste kosten per eenheid (in het echt te kalibreren). Tekstherkenning kan afwijken.">${pct}% van deel 1 ⓘ</span>`, `
+      <ol class="substeps">${steps}</ol>
+      <div class="bigbar" role="progressbar" aria-label="Voortgang ${P.p1.toLowerCase()}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div>
+      <p class="pline"><span>${what}</span><span>${p1Eta(plan, v)}</span></p>`);
+  }
+
+  const n = plan.items.length;
+  const name2 = `${P.p2} (met AI)`;
+  if (v < plan.T1) {
+    html += partBlock(2, name2, 'todo', 'na deel 1', `<p class="muted">Start zodra deel 1 klaar is: één AI-beoordeling per ${P.ai}.
+      Duurt enkele minuten, afhankelijk van het aantal ${P.aiPl}.</p>`);
+  } else if (!n) {
+    html += partBlock(2, name2, 'done', `geen ${P.aiPl}, niets te beoordelen`);
+  } else {
+    const k = plan.items.filter(i => i.t1 <= v).length;
+    const fails = plan.items.filter(i => i.fail && i.t1 <= v);
+    const cur = plan.items.find(i => i.t1 > v);
+    const cells = n <= 20
+      ? `<div class="boxes" aria-hidden="true">${plan.items.map(i => `<i class="${i.t1 <= v ? (i.fail ? 'fail' : 'ok') : i === cur ? 'busy' : ''}" title="${esc(i.code)} · ${esc(i.label)}"></i>`).join('')}</div>`
+      : `<div class="seg" aria-hidden="true"><i class="ok" style="flex:${k - fails.length}"></i><i class="fail" style="flex:${fails.length}"></i><i class="busy" style="flex:${cur ? 1 : 0}"></i><i style="flex:${n - k - (cur ? 1 : 0)}"></i></div>`;
+    const failList = fails.length ? `<ul class="fails">${fails.map(i => `<li>⚠ <span class="mono">${esc(i.code)}</span> · ${esc(i.label)}: mislukt (time-out). Na afloop opnieuw te proberen.</li>`).join('')}</ul>` : '';
+    const ai = plan.agent.findIndex(x => x.t1 > v), agentStep = ai < 0 ? plan.agent.length - 1 : ai;
+    const body = `${cells}
+      <p class="pline"><span><b>${k} van ${n}</b> beoordeeld${fails.length ? ` · <span class="bad">${fails.length} mislukt</span>` : ''}</span><span>${cur ? p2Band(plan, v) : ''}</span></p>
+      ${cur ? `<p class="now">Nu: <span class="mono">${esc(cur.code)}</span> · ${esc(cur.label)} <span class="muted">· ${fmtDur(v - cur.t0)} bezig</span></p>` : ''}
+      ${failList}
+      ${!cur ? `<div class="agent"><div class="bar indet"><i></i></div><span>Bevindingen samenstellen · stap ${agentStep + 1} <span class="muted">(max 20)</span></span></div>` : ''}`;
+    html += partBlock(2, name2, 'active', `${k} van ${n}`, body);
+  }
+  return html;
+}
+
+function inputsHTML(used, r) {
+  const items = Object.entries(used);
+  const nT = items.filter(([k]) => keyDisc(k) !== 'BST').length;
+  return `<div class="side-box"><p class="label">Invoer · ronde ${r.no} · ${plural(nT, 'tekening')}${items.length > nT ? ' + bestek' : ''}</p><ul class="inputs">${items.map(([k, f]) => {
+    const w = nameCheck(keyDisc(k), f.name);
+    return `<li><span class="code-s">${keyDisc(k)}</span><span class="fn" title="${esc(f.name)}">${esc(tail(f.name, 27))}</span>${w ? `<span class="bad">⚠ ${esc(w.msg)}</span>` : ''}</li>`;
+  }).join('')}</ul></div>`;
+}
+const logItems = (log, v = Infinity) => log.filter(e => e.t <= v).reverse()
+  .map(e => `<li${e.warn ? ' class="warn"' : ''}><span class="t">${fmtClock(e.t)}</span><span>${e.warn ? '⚠ ' : ''}${esc(e.text)}</span></li>`).join('');
+
+function summaryHTML(p, ri, kind, run, readOnly) {
+  const P = PARTS[kind];
+  const [h, m, l] = ernstCounts(run.findings);
+  const prevRound = p.rounds[ri - 1];
+  const prev = prevRound?.runs[kind]?.at(-1);
+  const dash = p.id === 'P051-690';
+  let cmp;
+  if (!prevRound) cmp = `<p class="muted">Eerste controleronde, nog niets om mee te vergelijken.</p>`;
+  else if (!prev) cmp = `<p class="muted">Ronde ${prevRound.no} is niet met deze analyse gecontroleerd, dus geen vergelijking.</p>`;
+  else {
+    const was = new Set(prev.findings.map(f => f.key)), now = new Set(run.findings.map(f => f.key));
+    const nw = [...now].filter(x => !was.has(x)).length, gone = [...was].filter(x => !now.has(x)).length;
+    cmp = `<dl class="tally cmp"><div><dt>Nieuw</dt><dd>${nw}</dd></div><div><dt>Opgelost</dt><dd>${gone}</dd></div><div><dt>Nog open</dt><dd>${now.size - nw}</dd></div></dl>`;
+  }
+  const top = [...run.findings].sort((a, b) => ERNST.indexOf(a.ernst) - ERNST.indexOf(b.ernst)).slice(0, 3);
+  const perDisc = {};
+  run.findings.forEach(f => f.disc.split('/').forEach(d => { perDisc[d] = (perDisc[d] || 0) + 1; }));
+  const discOrder = [...DRAWINGS.map(d => d.key), 'Algemeen'].filter(d => perDisc[d]);
+  const notChecked = [
+    ...run.failed.map(f => `${f.code} · ${f.label}: AI-beoordeling mislukt`),
+    ...DRAWINGS.filter(d => !Object.keys(run.used).some(k => keyDisc(k) === d.key)).map(d => `${d.key} (${d.name}): geen tekening aangeleverd`),
+    ...Object.entries(run.used).filter(([k, f]) => nameCheck(keyDisc(k), f.name))
+      .map(([k, f]) => `${keyLabel(k, f)}: bestandsnaam wijkt af (${nameCheck(keyDisc(k), f.name).msg.replace('Lijkt', 'lijkt')}), resultaten voor deze tekening zijn onzeker`),
+    ...(kind === 'tek' ? ['Bestek: valt onder de bestekanalyse'] : []),
+  ];
+  const retry = run.failed.length && !readOnly ? `<div class="warnbox" role="note"><p>⚠ ${plural(run.failed.length, 'item')} niet beoordeeld:
+      ${run.failed.map(f => `<span class="mono">${esc(f.code)}</span> · ${esc(f.label)}`).join(', ')}. De bevindingen daarvan ontbreken.</p>
+      <button class="btn sm" type="button" data-retry>Opnieuw proberen (alleen ${run.failed.length === 1 ? 'dit item' : 'deze items'})</button></div>` : '';
+
+  return `<section class="result" aria-label="Samenvatting">
+    <div class="res-top">
+      <div><p class="label">Resultaat</p><p class="big">${run.count} <span>${run.count === 1 ? 'bevinding' : 'bevindingen'}</span></p>
+        <p class="ernst"><span class="e-hoog">${h} Hoog</span> · <span>${m} Midden</span> · <span class="e-laag">${l} Laag</span></p>
+        ${discOrder.length ? `<p class="disc">Betrokken disciplines: ${discOrder.map(d => d === 'Algemeen' ? 'algemeen' : discName(d)).join(', ')}</p>` : ''}</div>
+      <div class="res-act">${dash
+        ? `<a class="btn" href="index.html">Open bevindingen →</a><span class="why">Bevindingen op de kaart en in het bestek</span>`
+        : `<button class="btn" type="button" aria-disabled="true">Open bevindingen</button><span class="why">Alleen voor P051-690 bestaat er al een bevindingen-dashboard.</span>`}</div>
+    </div>
+    ${retry}
+    ${!run.nItems ? `<p class="note">Geen ${P.aiPl} gevonden, dus niets te beoordelen. Dat betekent niet dat alles klopt: zie "Niet gecontroleerd".</p>` : ''}
+    <section class="block"><h2>Vergelijking met ${prevRound ? `ronde ${prevRound.no}` : 'vorige ronde'}</h2>${cmp}</section>
+    ${top.length ? `<section class="block"><h2>Hoogste ernst</h2><ol class="top">${top.map(f => `<li>
+      <span class="e-tag e-${f.ernst.toLowerCase()}">${f.ernst}</span>
+      <div><p>${esc(f.text)}</p><small>${f.id ? `<span class="mono">${f.id}</span> · ` : ''}${esc(f.disc)}${f.tek ? ' · ' + esc(f.tek) : ''}</small></div></li>`).join('')}</ol></section>` : ''}
+    ${notChecked.length ? `<section class="block"><h2>Niet gecontroleerd</h2><ul class="notchecked">${notChecked.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
+  </section>`;
+}
+
+function renderAnalysis(p, ri, kind) {
+  openDetail = null;
+  const r = p.rounds[ri], a = ANALYSES[kind], P = PARTS[kind], key = runKey(r, kind);
+  const readOnly = ri < p.rounds.length - 1;
+  delete p.unseen[key];
+  setSheet(`${a.title} — ronde ${r.no}`, p.number, null);
+  const live = p.live[key];
+  const last = r.runs[kind]?.at(-1);
+  const cancelled = p.cancelled[key];
+  const ready = a.reqs(r.files).every(x => x.ok);
+  const status = live ? ['busy', 'Bezig'] : cancelled && !last ? ['', 'Geannuleerd']
+    : last ? (last.status === 'warn' ? ['warn', 'Gereed met waarschuwingen'] : ['done', 'Gereed']) : ['', 'Niet gedraaid'];
+  const projectHash = '#/project/' + encodeURIComponent(p.id);
+
+  const view = el(`<section class="analysis">
+    <nav class="crumbs" aria-label="Kruimelpad"><a href="#/">Register</a> <span aria-hidden="true">›</span>
+      <a href="${projectHash}" data-view>${esc(p.name)}</a> <span aria-hidden="true">›</span>
+      <a href="${projectHash}" data-view>Ronde ${r.no}</a> <span aria-hidden="true">›</span> <span aria-current="page">${a.title}</span></nav>
+    <div class="view-head an-head">
+      <div><p class="label"><span class="pnr">${esc(p.number)}</span> · controleronde ${r.no}${readOnly ? ' (alleen lezen)' : ''}</p><h1>${a.title}</h1></div>
+      <div class="an-status"><span class="chip ${status[0]}" role="status">${status[1]}</span><span class="clock"></span></div>
+      <div class="an-actions"></div>
+    </div>
+    ${p.id === 'P051-690' ? `<p class="note">Demo: voortgang en duur zijn gesimuleerd. De bevindingen komen uit onze testruns op deze set tekeningen en dit bestek.</p>` : ''}
+    <p class="sr say" aria-live="polite"></p>
+    <div class="an"><div class="an-main"></div><aside class="an-side" aria-label="Invoer en logboek"></aside></div>
+  </section>`);
+  const main = view.querySelector('.an-main'), side = view.querySelector('.an-side');
+  const clock = view.querySelector('.clock'), actions = view.querySelector('.an-actions');
+  view.querySelectorAll('[data-view]').forEach(x => x.addEventListener('click', () => { p.view = ri; }));
+  const rerender = focusSel => { renderAnalysis(p, ri, kind); if (focusSel) app.querySelector(focusSel)?.focus(); };
+  const startBtn = (label, cls = 'btn sm') => !readOnly && ready ? `<button class="${cls}" type="button" data-start>${label}</button>` : '';
+  let tick = null;
+
+  if (live) {
+    const plan = live.plan;
+    actions.innerHTML = `<button class="btn sm ghost" type="button" data-cancel>Annuleren</button>`;
+    side.innerHTML = `<div class="side-box tallybox"></div>
+      <p class="leave">Je kunt dit scherm verlaten; de analyse loopt door. De status staat op de projectpagina en in het register.</p>
+      ${inputsHTML(plan.used, r)}
+      <details class="side-box"><summary>Logboek</summary><ol class="log"></ol></details>`;
+    const tally = side.querySelector('.tallybox'), logEl = side.querySelector('.log');
+    const say = view.querySelector('.say');
+    let lastSaid = '';
+    const wireCancel = () => actions.querySelector('[data-cancel]').addEventListener('click', () => {
+      actions.innerHTML = `<span class="confirm">Analyse stoppen? De voortgang gaat verloren.</span>
+        <button class="btn sm danger" type="button" data-yes>Ja, stoppen</button><button class="btn sm ghost" type="button" data-no>Doorgaan</button>`;
+      actions.querySelector('[data-no]').focus();
+      actions.querySelector('[data-yes]').addEventListener('click', () => { cancelRun(p, ri, kind); rerender('[data-start]'); });
+      actions.querySelector('[data-no]').addEventListener('click', () => {
+        actions.innerHTML = `<button class="btn sm ghost" type="button" data-cancel>Annuleren</button>`;
+        wireCancel();
+        actions.querySelector('[data-cancel]').focus();
+      });
+    });
+    wireCancel();
+    tick = () => {
+      if (!view.isConnected) return;
+      if (p.live[key] !== live) return rerender();
+      const v = vNow(live);
+      const fs = plan.items.filter(i => i.t1 <= v && !i.fail).flatMap(i => i.findings);
+      const hoog = fs.filter(f => f.ernst === 'Hoog').length;
+      const lastAct = plan.log.filter(e => e.t <= v).at(-1);
+      const ago = lastAct ? v - lastAct.t : v;
+      main.innerHTML = progressHTML(plan, v);
+      const fails = plan.items.filter(i => i.fail && i.t1 <= v).length;
+      const phase = v < plan.T1 ? `Deel 1, ${P.p1}` : plan.items.some(i => i.t1 > v) ? `Deel 2, ${P.p2}` : 'Bevindingen samenstellen';
+      const msg = `${phase}${fails ? `. ${plural(fails, 'item')} mislukt` : ''}`;
+      if (msg !== lastSaid) { say.textContent = lastSaid ? msg : ''; lastSaid = msg; }
+      tally.innerHTML = `<p class="label">Bevindingen tot nu toe</p><p class="big">${fs.length}</p>
+        <p>${hoog ? `<span class="e-hoog">waarvan ${hoog} Hoog</span>` : 'nog geen met ernst Hoog'}</p>
+        <p class="muted small">${v < plan.T1 ? 'Bevindingen komen binnen tijdens deel 2.' : 'Verdeling naar ernst volgt na afloop.'}</p>`;
+      logEl.innerHTML = logItems(plan.log, v);
+      clock.innerHTML = `Verstreken <b>${fmtDur(v)}</b> · laatste activiteit ${ago < 3000 ? 'zojuist' : fmtDur(ago) + ' geleden'}<small>Demo: ${SPEED}× versneld · tijden gesimuleerd</small>`;
+      setTimeout(tick, 250);
+    };
+  } else if (last) {
+    clock.innerHTML = `Gereed in <b>${fmtDur(last.ms)}</b> · ${fmtTime(last.at)}<small>Gesimuleerde duur</small>`;
+    actions.innerHTML = startBtn('Opnieuw draaien', 'btn sm ghost');
+    const stale = changesSince(last, r.files, kind);
+    main.innerHTML = (cancelled ? `<p class="note">Een nieuwe poging is geannuleerd na ${fmtDur(cancelled.v)}. Hieronder het resultaat van de laatste afgeronde run.</p>` : '')
+      + (stale.length && !readOnly ? `<p class="warnline">Verouderd: ${esc(stale.join(', '))} sinds deze run. Draai opnieuw voor actuele bevindingen.</p>` : '')
+      + summaryHTML(p, ri, kind, last, readOnly);
+    side.innerHTML = `${inputsHTML(last.used, r)}
+      <details class="side-box"><summary>Verloop en logboek</summary><div class="flow">
+        <p class="line"><span class="ok" aria-hidden="true">✓</span> ${P.p1} · ${plural(last.p1.n, last.p1.unit)} · ${fmtDur(last.p1.ms)}</p>
+        <p class="line"><span class="ok" aria-hidden="true">✓</span> ${P.p2} · ${plural(last.nItems, P.ai)}${last.failed.length ? ` · <span class="bad">${last.failed.length} mislukt</span>` : ''}</p>
+        <p class="muted small">In het echt hangt de duur van deel 2 af van de AI-dienst.</p></div>
+        <ol class="log">${logItems(last.log)}</ol></details>`;
+    main.querySelector('[data-retry]')?.addEventListener('click', () => { startRun(p, ri, kind, last); rerender('[data-cancel]'); });
+  } else {
+    actions.innerHTML = startBtn(cancelled ? 'Opnieuw starten' : a.start);
+    main.innerHTML = cancelled
+      ? `<p class="note">Geannuleerd na ${fmtDur(cancelled.v)}. Er zijn geen resultaten bewaard.</p>`
+      : `<p class="note">Deze analyse is in ronde ${r.no} nog niet gedraaid.${ready ? '' : ` Eerst nodig: ${esc(a.reqs(r.files).filter(x => !x.ok).map(x => x.short).join(', '))}.`}</p>`;
+    if (ready && !readOnly) main.innerHTML += partBlock(1, P.p1, 'todo', `ca. ${expectP1(r.files, kind)} min`) + partBlock(2, `${P.p2} (met AI)`, 'todo', 'enkele minuten');
+    side.innerHTML = inputsHTML(snapshot(r.files, kind), r);
+  }
+  actions.querySelector('[data-start]')?.addEventListener('click', () => { startRun(p, ri, kind); rerender('[data-cancel]'); });
+  app.replaceChildren(view);
+  tick?.();
+}
+
+function route() {
+  const m = location.hash.match(/^#\/project\/([^/]+)(?:\/r(\d+)\/(tek|bst))?$/);
+  const project = m && projects.find(p => p.id === decodeURIComponent(m[1]));
+  const ri = project && m[2] ? project.rounds.findIndex(r => r.no === +m[2]) : -1;
+  if (location.hash === '#/nieuw') renderNew();
+  else if (ri >= 0) renderAnalysis(project, ri, m[3]);
+  else if (project) renderDetail(project);
+  else renderRegister();
+  app.focus({ preventScroll: true });
+  window.scrollTo(0, 0);
+}
+
+// Voorkom dat de browser een PDF opent als die naast een blok wordt losgelaten.
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => e.preventDefault());
+addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>
